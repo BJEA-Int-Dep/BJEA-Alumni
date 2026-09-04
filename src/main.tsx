@@ -1,0 +1,17 @@
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+
+import AlumniApp from '@/components/alumni-app';
+import '@/styles/globals.css';
+
+const root = document.getElementById('root');
+
+if (!root) {
+  throw new Error('Missing root element');
+}
+
+createRoot(root).render(
+  <React.StrictMode>
+    <AlumniApp />
+  </React.StrictMode>,
+);

@@ -1,0 +1,158 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+@custom-variant data-open {
+  &:where([data-state='open']),
+  &:where([data-open]:not([data-open='false'])) {
+    @slot;
+  }
+}
+@custom-variant data-closed {
+  &:where([data-state='closed']),
+  &:where([data-closed]:not([data-closed='false'])) {
+    @slot;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  --font-sans: 'Arial Rounded MT Bold', 'PingFang SC', 'Microsoft YaHei', Arial,
+    sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Consolas, monospace;
+  --background: #fffaf1;
+  --foreground: #23272b;
+  --card: #ffffff;
+  --card-foreground: #23272b;
+  --popover: #fffaf1;
+  --popover-foreground: #23272b;
+  --primary: #ee573c;
+  --primary-foreground: #ffffff;
+  --secondary: #eaf4f8;
+  --secondary-foreground: #145f8b;
+  --muted: #f0eee8;
+  --muted-foreground: #73777a;
+  --accent: #eef5df;
+  --accent-foreground: #39743f;
+  --destructive: #c62f2f;
+  --border: #dedbd3;
+  --input: #d8d4cb;
+  --ring: #167fbb;
+  --chart-1: #ee573c;
+  --chart-2: #f5a623;
+  --chart-3: #1680bd;
+  --chart-4: #62a84d;
+  --chart-5: #70777d;
+  --radius: 0.9rem;
+  --sidebar: #fffaf1;
+  --sidebar-foreground: #23272b;
+  --sidebar-primary: #ee573c;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #eef5df;
+  --sidebar-accent-foreground: #39743f;
+  --sidebar-border: #dedbd3;
+  --sidebar-ring: #167fbb;
+}
+
+.dark {
+  --background: #1d2226;
+  --foreground: #fffaf1;
+  --card: #2a3035;
+  --card-foreground: #fffaf1;
+  --popover: #2a3035;
+  --popover-foreground: #fffaf1;
+  --primary: #ff765c;
+  --primary-foreground: #201c1a;
+  --secondary: #164a65;
+  --secondary-foreground: #e8f7ff;
+  --muted: #343a3f;
+  --muted-foreground: #b7bdc0;
+  --accent: #355937;
+  --accent-foreground: #edffe9;
+  --destructive: #ff7272;
+  --border: #42494f;
+  --input: #4d555b;
+  --ring: #55b5e8;
+  --chart-1: #ff765c;
+  --chart-2: #ffc34f;
+  --chart-3: #55b5e8;
+  --chart-4: #8dcc72;
+  --chart-5: #aab0b4;
+  --sidebar: #252b30;
+  --sidebar-foreground: #fffaf1;
+  --sidebar-primary: #ff765c;
+  --sidebar-primary-foreground: #201c1a;
+  --sidebar-accent: #355937;
+  --sidebar-accent-foreground: #edffe9;
+  --sidebar-border: #42494f;
+  --sidebar-ring: #55b5e8;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    @apply bg-background font-sans;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    min-width: 320px;
+  }
+
+  button,
+  a {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+::selection {
+  background: #ffd19f;
+  color: #23272b;
+}

@@ -1,31 +1,43 @@
-# 亦实校友宇宙 · 树莓派部署交付包
+# 亦实校友宇宙
 
-这是可直接交给部署人员的纯静态网站，不需要 Node.js、npm、数据库或 API 密钥。
+北京亦庄实验中学校友网站前端 MVP，用于浏览虚构校友轨迹并创建校友角色卡。项目采用 Vite、React、TypeScript 和 Tailwind CSS，当前完全在浏览器中运行，不依赖后端或数据库。
 
-## 文件说明
+## 本地开发
 
-- `site/`：最终网页文件，服务器应直接托管这个目录。
-- `yizhuang-alumni-site.tar.gz`：`site/` 内容的传输压缩包。
-- `Caddyfile.example`：Caddy 配置模板；部署前把 `YOUR_DOMAIN` 换成实际域名。
+需要 Node.js 20.19+ 或 22.12+，以及 pnpm。
 
-## 部署前必须确认
+```bash
+pnpm install
+pnpm dev
+```
 
-1. 域名的 A/AAAA 记录通过 DDNS 指向树莓派当前公网地址。
-2. 路由器和防火墙把公网 TCP 80、443 转发到树莓派。
-3. 从家庭网络之外测试 80、443；SSH 能连通不代表网页端口也能连通。
+常用命令：
 
-## 推荐部署方式
+```bash
+pnpm check    # TypeScript 类型检查
+pnpm build    # 生成 dist/ 静态部署文件
+pnpm preview  # 本地预览生产构建
+```
 
-1. 把 `yizhuang-alumni-site.tar.gz` 传到树莓派。
-2. 将压缩包完整解压到 `/srv/yizhuang-alumni/site`；更新时完整替换该目录，避免遗留旧的哈希资源。
-3. 安装 Caddy，把 `Caddyfile.example` 中的域名替换后放到 `/etc/caddy/Caddyfile`。
-4. 运行 `caddy validate --config /etc/caddy/Caddyfile`，成功后重载 Caddy。
-5. 用手机流量打开 `https://你的域名`，并检查首页、校友详情、创建档案流程和校徽图片。
+## 项目结构
 
-Caddy 在域名正确解析且公网 80/443 可达时会自动申请并续期 HTTPS 证书。
+```text
+.
+├── public/                 # 不参与打包处理的静态资源
+├── src/
+│   ├── components/         # 页面与通用 UI 组件
+│   ├── lib/                # 演示数据和工具函数
+│   ├── styles/             # Tailwind 与全局样式
+│   └── main.tsx            # 应用入口
+├── Caddyfile.example       # Caddy 部署模板
+├── index.html              # Vite HTML 入口
+├── package.json
+├── tsconfig.json
+└── vite.config.ts
+```
 
-## 当前产品边界
+## 部署
 
-- 所有校友、经历和数据均为虚构演示内容。
-- 网站完全在浏览器中运行；创建的档案不会上传或持久保存，刷新页面后会丢失。
-- 当前只有一个页面，不需要服务端重写规则；模板仍配置了首页回退，便于以后增加前端路由。
+运行 `pnpm build` 后，将 `dist/` 的内容完整同步到服务器的 `/srv/yizhuang-alumni/site`。复制 `Caddyfile.example`，把 `YOUR_DOMAIN` 替换为真实域名，再用 Caddy 加载配置即可。
+
+创建的档案目前只存在于页面状态中，刷新后会丢失；仓库内的校友、经历和其他数据均为虚构演示内容。
