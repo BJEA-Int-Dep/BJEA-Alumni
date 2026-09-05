@@ -25,9 +25,7 @@
     "src",
     "shared",
     "server",
-    "tests",
-    "vite.config.ts",
-    "playwright.config.ts"
+    "vite.config.ts"
   ],
   "exclude": ["dist", "node_modules"]
 }

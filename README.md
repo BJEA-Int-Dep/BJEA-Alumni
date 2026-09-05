@@ -17,17 +17,13 @@ pnpm dev
 
 ```bash
 pnpm check         # TypeScript 检查
-pnpm test          # 单元和 API 测试，不调用付费模型
-pnpm test:browser  # 桌面 / 手机浏览器测试，模拟 AI 和图片响应
 pnpm build         # 构建 dist/ 静态文件
 pnpm dev:api       # 仅启动带热重载的后端
 pnpm start:api     # 仅启动后端
 pnpm preview       # 预览 dist/；API 需要另行启动
 ```
 
-浏览器测试默认使用 `/usr/bin/chromium`，其他系统通过 `CHROMIUM_PATH` 指定路径。原生 emoji 字体由用户系统提供（Linux 可安装 Noto Color Emoji）；合成头像是图片，不依赖 emoji 字体。
-
-可选真实端到端检查：启动开发服务后执行 `node scripts/smoke-avatar.mjs`。这会向配置的付费模型发送一组虚构回答，校验图片加载、确认浏览器不直连提供商，并将截图写入忽略的 `test-results/`；普通测试不会产生模型费用。
+原生 emoji 字体由用户系统提供（Linux 可安装 Noto Color Emoji）；合成头像是图片，不依赖 emoji 字体。
 
 ## 项目结构
 
@@ -43,8 +39,7 @@ src/
   styles/                 全局样式
 server/                   Node API、OpenRouter、Emoji Kitchen 与图片缓存
 shared/                   前后端共用的头像协议与选择规则
-tests/                    单元、API 与浏览器回归测试
-scripts/                  开发启动与可选真实服务检查
+scripts/                  本地开发启动脚本
 ```
 
 ## 头像流程
@@ -86,7 +81,7 @@ pnpm build
 API_HOST=127.0.0.1 API_PORT=8788 pnpm start:api
 ```
 
-图片缓存默认写入 `.cache/emoji/`，可通过 `EMOJI_CACHE_DIR` 放到独立的持久化目录。`.env`、图片缓存、测试截图均被 Git 忽略；密钥只放在运行时环境变量中，不要放入任何 `VITE_` 变量。`Caddyfile.example` 可直接作为反代配置参考。
+图片缓存默认写入 `.cache/emoji/`，可通过 `EMOJI_CACHE_DIR` 放到独立的持久化目录。`.env` 和图片缓存均被 Git 忽略；密钥只放在运行时环境变量中，不要放入任何 `VITE_` 变量。`Caddyfile.example` 可直接作为反代配置参考。
 
 创建中的草稿仍只在页面状态中，刷新会丢失；完成卡片可从当前浏览器历史条目恢复，但不代表保存到了服务器，也不能跨设备分享。登录、档案数据库、真正的公开分享仍未实现。
 
