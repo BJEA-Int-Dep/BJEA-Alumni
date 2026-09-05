@@ -36,19 +36,7 @@ const schema = {
 };
 
 export async function suggest(input: SuggestionRequest): Promise<Suggestions> {
-  return suggestWithEnvironment(input, process.env);
-}
-
-export interface SuggestionEnvironment {
-  OPENROUTER_API_KEY?: string;
-  OPENROUTER_MODEL?: string;
-}
-
-export async function suggestWithEnvironment(
-  input: SuggestionRequest,
-  environment: SuggestionEnvironment,
-): Promise<Suggestions> {
-  const key = environment.OPENROUTER_API_KEY;
+  const key = process.env.OPENROUTER_API_KEY;
   if (!key) throw new ApiError(503, '头像推荐暂未配置，可以保留当前头像继续。');
   const response = await fetch(
     'https://openrouter.ai/api/v1/chat/completions',
@@ -60,7 +48,7 @@ export async function suggestWithEnvironment(
       },
       signal: AbortSignal.timeout(45000),
       body: JSON.stringify({
-        model: environment.OPENROUTER_MODEL || 'openai/gpt-5.6-terra',
+        model: process.env.OPENROUTER_MODEL || 'openai/gpt-5.6-terra',
         messages: [
           {
             role: 'system',
