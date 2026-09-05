@@ -1,6 +1,6 @@
 # 亦实校友宇宙
 
-北京亦庄实验中学校友网站 MVP：Vite + React + TypeScript + Tailwind 前端，搭配独立 Node.js 头像后端。校友墙仍为虚构演示数据，创建档案的头像已接入真实 AI 推荐和 Emoji Kitchen。
+北京亦庄实验中学校友网站 MVP：Vite + React + TypeScript + Tailwind 前端，搭配头像 API。校友墙仍为虚构演示数据，创建档案的头像已接入真实 AI 推荐和 Emoji Kitchen。
 
 ## 本地开发
 
@@ -19,7 +19,7 @@ pnpm dev
 pnpm check         # TypeScript 检查
 pnpm test          # 单元和 API 测试，不调用付费模型
 pnpm test:browser  # 桌面 / 手机浏览器测试，模拟 AI 和图片响应
-pnpm build         # 构建 dist/ 静态文件
+pnpm build         # 构建网页与托管平台 Worker
 pnpm dev:api       # 仅启动带热重载的后端
 pnpm start:api     # 仅启动后端
 pnpm preview       # 预览 dist/；API 需要另行启动
@@ -41,7 +41,7 @@ src/
   components/             通用 UI 与学校页头
   lib/                    校友演示数据、通用工具
   styles/                 全局样式
-server/                   Node API、OpenRouter、Emoji Kitchen 与图片缓存
+server/                   本地 Node API、托管 Worker、OpenRouter 与 Emoji Kitchen
 shared/                   前后端共用的头像协议与选择规则
 tests/                    单元、API 与浏览器回归测试
 scripts/                  开发启动与可选真实服务检查
@@ -49,35 +49,36 @@ scripts/                  开发启动与可选真实服务检查
 
 ## 头像流程
 
-1. 第一阶段结束：用性格、昵称、形象描述和脑洞偏好生成主体、特征两个列表，每栏 3–5 个有效候选。
-2. 第二阶段结束：加入毕业年份、状态、地点、方向，更新两个列表。选择不透露时也进入阶段总结。
-3. 第三阶段结束：加入真心话与留言，最后更新一次；确认后进入完整角色卡。
+1. 前六步收集性格、毕业年份、状态、位置、方向、感受和留言；进入最后一步时，用完整回答请求一行 AI 推荐 emoji 和几个昵称。
+2. 角色卡区域显示 Emoji Kitchen 风格的两个可切换槽位和合成结果；点击任意槽位，再从 AI 推荐行或全量可合成 emoji 网格中选择。
+3. 另一枚选定后，程序用 `emoji-mixer` 本地兼容表禁用无法合成的选项。支持随机组合、清空和随时换一批；用户手动选定的 emoji 会在后续 AI 请求中保留。
+4. 最后一步确认昵称后生成角色卡；AI 失败不阻塞完成。进入最后一步时只请求一次，之后只有点击“换一批”才会再次请求；旧请求的迟到结果会被忽略。
 
-AI 只返回两个有序列表与简短理由；程序用 `emoji-mixer` 本地兼容表验证组合，按两栏优先级推荐配对。主体与特征是语义角色，不保证图片中谁位于哪边或占多大比例。
-
-点击单枚只锁定对应位置；点击一整组锁定两枚。锁定位置在后续阶段、回退修改答案、换一批及请求等待中再次点击后都不会被覆盖，随时可以解锁。不兼容选项置灰。答题期间可展开“调整我的 emoji 配方”。相同阶段、相同回答不会因前进后退再次调用模型；旧请求的迟到结果会被忽略。
+AI 只返回最多 8 个有序推荐 emoji 与简短理由，不决定哪个 emoji 放在哪个位置，也不直接生成图片。程序通过同源 API 使用 `emoji-mixer` 的兼容表获取组合图片；不支持组合的 Unicode emoji 不会出现在选择网格中。
 
 ## 接口与安全
 
-| 接口 | 用途 |
-| --- | --- |
-| `POST /api/avatar/suggestions` | 校验阶段回答，调用 OpenRouter，返回候选和有效配对 |
-| `GET /api/avatar/images/<主体码点>_<特征码点>.png` | 从本站读取或下载组合图片 |
-| `GET /api/health` | 进程健康检查，不调用外部服务 |
+| 接口                                                   | 用途                                                         |
+| ------------------------------------------------------ | ------------------------------------------------------------ |
+| `POST /api/avatar/suggestions`                         | 校验完整回答，调用 OpenRouter，返回 AI 推荐 emoji 和昵称建议 |
+| `GET /api/avatar/emojis`                               | 返回全部可合成 emoji；传 `?with=<emoji>` 返回兼容集合        |
+| `GET /api/avatar/random`                               | 返回一个确定有效的随机组合                                   |
+| `GET /api/avatar/images/<emoji 码点>_<emoji 码点>.png` | 从本站读取或下载组合图片                                     |
+| `GET /api/health`                                      | 进程健康检查，不调用外部服务                                 |
 
-`server/openrouter.ts` 管理中文提示词和严格 JSON 输出；`shared/avatar.ts` 管理请求结构、手动选择与合并规则。API 剔除尚未到达阶段的回答，不把上游错误正文、密钥或用户回答写入日志。
+`server/openrouter.ts` 管理中文提示词和严格 JSON 输出；`shared/avatar.ts` 管理请求结构、手动选择与合并规则。API 不把上游错误正文、密钥或用户回答写入日志。
 
 图片仅允许兼容表生成的 `www.gstatic.com` 地址，拒绝任意 URL、重定向、非 PNG 和超过 1 MiB 的资源。`emoji-mixer@1.3.1` 数据存在镜像条目，部分只有另一方向才有真实图片，因此按记录尝试双向及旧版本（最多 6 个地址、总超时 15 秒），不假设第一个地址一定可访问。
 
-同一对 emoji 交换顺序复用缓存，缓存标识包含候选资源版本。文件原子写入 `.cache/emoji/`，可用 `EMOJI_CACHE_DIR` 更改目录；最多约 1,000 张，满后仍直接返回图片但不继续落盘。浏览器缓存一天并带 ETag；Google 短暂不可达时，已落盘图片仍可使用。失败时显示原生 emoji 和提示，选择不会丢失。
+本地 Node API 会把图片原子写入 `.cache/emoji/`，可用 `EMOJI_CACHE_DIR` 更改目录；最多约 1,000 张，满后仍直接返回图片但不继续落盘。公网 Worker 不依赖磁盘，由浏览器和边缘网络缓存图片；失败时显示原生 emoji 和提示，选择不会丢失。
 
 每个 IP 每小时最多 30 次未缓存推荐、600 次图片请求，全局最多 3 个并发推荐、8 个并发图片下载；相同推荐合并并缓存 10 分钟。`AVATAR_DAILY_LIMIT` 默认每 UTC 日 300 次模型调用。计数在内存中，重启会重置，不跨实例共享；这是 MVP 防护，不代替 OpenRouter 账户额度限制或正式的鉴权 / 持久化限流。
 
 ## 部署
 
-前端 `pnpm build` 后由 Nginx / Caddy 提供 `dist/`；`/api/` 必须代理至常驻后端。仅上传静态文件不能提供 AI 推荐。
+公网版本通过 OpenAI Sites 运行：`dist/client/` 保存网页，`dist/server/index.js` 提供 Cloudflare Worker 兼容的 API。`.openai/hosting.json` 只记录站点 ID；OpenRouter 密钥由托管环境保存，不写入仓库。
 
-生产环境不需要 Docker：在主机上安装 Node.js 20.19+ 或 22.12+、pnpm 9，构建前端并直接运行后端。用 systemd、Supervisor 或其他进程管理器保持 API 常驻；Caddy/Nginx 将 `/api/` 反代到后端端口。
+若自行部署，也不需要 Docker：在主机上安装 Node.js 20.19+ 或 22.12+、pnpm 9，构建前端并直接运行 Node API，再由 Caddy/Nginx 将 `/api/` 反代到后端端口。
 
 ```bash
 pnpm install --frozen-lockfile
@@ -86,8 +87,6 @@ API_HOST=127.0.0.1 API_PORT=8788 pnpm start:api
 ```
 
 图片缓存默认写入 `.cache/emoji/`，可通过 `EMOJI_CACHE_DIR` 放到独立的持久化目录。`.env`、图片缓存、测试截图均被 Git 忽略；密钥只放在运行时环境变量中，不要放入任何 `VITE_` 变量。`Caddyfile.example` 可直接作为反代配置参考。
-
-如果仍使用相邻 `personal_website` 的 Compose 部署，需要把其中的 `alumni-avatar` 改为主机上的 systemd 服务，并移除该 Compose 服务对本仓库 Dockerfile 的引用。
 
 创建中的草稿仍只在页面状态中，刷新会丢失；完成卡片可从当前浏览器历史条目恢复，但不代表保存到了服务器，也不能跨设备分享。登录、档案数据库、真正的公开分享仍未实现。
 

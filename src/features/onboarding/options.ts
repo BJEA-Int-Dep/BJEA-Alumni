@@ -1,11 +1,6 @@
 import type { Tone } from '@/lib/alumni-data';
 
-export type StatusId =
-  | 'university'
-  | 'working'
-  | 'gap'
-  | 'independent'
-  | 'private';
+export type StatusId = 'university' | 'working' | 'gap' | 'independent';
 
 interface PersonalityOption {
   id: string;
@@ -14,7 +9,6 @@ interface PersonalityOption {
   emoji: string;
   tone: Tone;
   summary: string;
-  description: string;
 }
 
 export const PERSONALITIES: PersonalityOption[] = [
@@ -25,8 +19,6 @@ export const PERSONALITIES: PersonalityOption[] = [
     emoji: '🦉',
     tone: 'ocean',
     summary: '看起来很安静，脑内同时开着十二个窗口。',
-    description:
-      '戴圆框眼镜的蓝色猫头鹰，安静、好奇、有一点夜猫子气质，轻松插画风',
   },
   {
     id: 'vibe',
@@ -35,7 +27,6 @@ export const PERSONALITIES: PersonalityOption[] = [
     emoji: '🐣',
     tone: 'lemon',
     summary: '擅长让尴尬的空气重新流动起来。',
-    description: '橙黄色小鸟，表情很有感染力，随身带着快乐能量，轻松插画风',
   },
   {
     id: 'sprint',
@@ -44,7 +35,6 @@ export const PERSONALITIES: PersonalityOption[] = [
     emoji: '🐯',
     tone: 'sunset',
     summary: '平时像在待机，DDL 前突然拥有超能力。',
-    description: '穿连帽衫的小老虎，手边有咖啡和便利贴，行动力爆发，轻松插画风',
   },
   {
     id: 'npc',
@@ -52,8 +42,7 @@ export const PERSONALITIES: PersonalityOption[] = [
     note: '总在奇怪的地方触发支线',
     emoji: '🦦',
     tone: 'mint',
-    summary: '没有固定人设，但经常解锁意外剧情。',
-    description: '背着帆布包的水獭，收藏奇怪小物件，松弛又神秘，轻松插画风',
+    summary: '没有固定人设，但经常遇到意外剧情。',
   },
 ];
 
@@ -77,12 +66,6 @@ export const STATUS_OPTIONS: Array<{
     note: '自己画地图，也自己踩坑',
     emoji: '🚀',
   },
-  {
-    id: 'private',
-    label: '暂时不想透露',
-    note: '完全没问题，直接跳过',
-    emoji: '🌫️',
-  },
 ];
 
 export const PLACE_SUGGESTIONS: Record<StatusId, string[]> = {
@@ -90,7 +73,6 @@ export const PLACE_SUGGESTIONS: Record<StatusId, string[]> = {
   working: ['留在北京工作', '去了南方城市', '在海外工作', '远程工作中'],
   gap: ['在旅行', '在准备申请', '在做个人项目', '先休息充电'],
   independent: ['自己的小工作室', '三五人的创业团队', '独立创作中', '到处办公'],
-  private: ['暂时保密'],
 };
 
 export const DIRECTION_OPTIONS: Record<StatusId, string[]> = {
@@ -110,7 +92,6 @@ export const DIRECTION_OPTIONS: Record<StatusId, string[]> = {
   ],
   gap: ['旅行与体验', '准备申请', '个人项目', '休息充电', '继续探索'],
   independent: ['创业中', '独立创作', '自由职业', '小团队项目', '保密项目'],
-  private: ['暂时保密'],
 };
 
 export const REFLECTION_OPTIONS = [

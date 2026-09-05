@@ -2,28 +2,31 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   buildSuggestions,
+  compatibleEmojis,
   normalizeEmoji,
+  randomPair,
   upstreamImage,
 } from '../server/kitchen.ts';
 import {
-  chooseEmoji,
+  canChooseEmoji,
+  chooseAnyEmoji,
+  compatibilityReady,
   emptyAvatar,
   mergeSuggestions,
   pairImagePath,
   selectedPair,
   suggestionRequestSchema,
-  type EmojiLists,
+  type Suggestions,
 } from '../shared/avatar.ts';
 
 const entries = (...emojis: string[]) =>
   emojis.map((emoji) => ({ emoji, reason: `关于 ${emoji}` }));
-const lists: EmojiLists = {
-  subjects: entries('🐱', '🐶', '🦊'),
-  traits: entries('🌟', '🔥', '🙃'),
+const suggestions: Suggestions = {
+  recommendations: entries('🐱', '🐶', '🦊', '🌟'),
+  nicknameSuggestions: ['小行星', '周五下班', '十一号'],
 };
-const suggestions = buildSuggestions(lists, emptyAvatar().selection);
 
-test('uses real bidirectional Kitchen lookup and rejects non-emoji / unsupported inputs', () => {
+test('uses real bidirectional Kitchen lookup and rejects invalid inputs', () => {
   assert.ok(upstreamImage('🐱', '🔥'));
   assert.ok(upstreamImage('🔥', '🐱'));
   assert.equal(upstreamImage('🐱', 'https://example.com'), null);
@@ -32,85 +35,66 @@ test('uses real bidirectional Kitchen lookup and rejects non-emoji / unsupported
   assert.equal(normalizeEmoji('🐱🐶'), null);
 });
 
-test('cleans unsupported/duplicate candidates and emits only known, same-origin pairs', () => {
-  const result = buildSuggestions(
-    { ...lists, subjects: entries('🐱', '🐱', 'not-an-emoji', '🦊') },
-    emptyAvatar().selection,
+test('cleans and deduplicates recommendations without requiring combinations', () => {
+  const result = buildSuggestions({
+    recommendations: entries('🐱', '🐱', 'not-an-emoji', '🦊'),
+    nicknameSuggestions: ['小行星', '周五下班', '十一号'],
+  });
+  assert.deepEqual(
+    result.recommendations.map((entry) => entry.emoji),
+    ['🐱', '🦊'],
   );
-  assert.equal(result.subjects.length, 2);
-  for (const pair of result.pairs) {
-    assert.ok(upstreamImage(pair.subject, pair.trait));
-    assert.equal(pair.imageUrl, pairImagePath(pair.subject, pair.trait));
-  }
+  assert.deepEqual(result.nicknameSuggestions, suggestions.nicknameSuggestions);
 });
 
-test('automatically selects first valid recommendation without locking it', () => {
-  const state = mergeSuggestions(emptyAvatar(), suggestions);
-  assert.deepEqual(selectedPair(state), suggestions.pairs[0]);
-  assert.equal(state.selection.subjectLocked, false);
-  assert.equal(state.selection.traitLocked, false);
-});
-
-test('clicking a subject locks just that slot; later updates preserve it', () => {
-  const first = mergeSuggestions(emptyAvatar(), suggestions);
-  const selected = chooseEmoji(first, 'subject', '🐶');
-  assert.equal(selected.selection.subjectLocked, true);
-  assert.equal(selected.selection.traitLocked, false);
-  const incoming = buildSuggestions(
-    { subjects: entries('🐱', '🐶', '🦊'), traits: entries('🙃', '🌟', '🔥') },
-    selected.selection,
-  );
-  const next = mergeSuggestions(selected, incoming);
-  assert.equal(next.selection.subject, '🐶');
-  assert.equal(next.selection.trait, '🙃');
-});
-
-test('user choices made during an in-flight request survive a stale response', () => {
-  let state = mergeSuggestions(emptyAvatar(), suggestions);
-  state = chooseEmoji(chooseEmoji(state, 'subject', '🐶'), 'trait', '🔥');
-  const stale = buildSuggestions(
-    { subjects: entries('🐱', '🦊', '🐼'), traits: entries('🌟', '🙃', '💫') },
-    emptyAvatar().selection,
-  );
-  const next = mergeSuggestions(state, stale);
-  assert.deepEqual(next.selection, state.selection);
-  assert.ok(selectedPair(next));
-  assert.ok(next.subjects.some((entry) => entry.emoji === '🐶'));
-  assert.ok(next.traits.some((entry) => entry.emoji === '🔥'));
-  assert.ok(next.subjects.length <= 5 && next.traits.length <= 5);
-});
-
-test('cannot replace a locked opposite slot with an incompatible pair', () => {
-  const state = mergeSuggestions(emptyAvatar(), suggestions);
-  state.selection.traitLocked = true;
-  state.pairs = state.pairs.filter(
-    (pair) => pair.subject !== '🦊' || pair.trait !== state.selection.trait,
-  );
-  assert.equal(chooseEmoji(state, 'subject', '🦊'), state);
-});
-
-test('unlocking permits automatic recommendations again', () => {
-  const state = chooseEmoji(
-    mergeSuggestions(emptyAvatar(), suggestions),
-    'subject',
-    '🐶',
-  );
-  state.selection.subjectLocked = false;
-  assert.equal(
-    mergeSuggestions(state, suggestions).selection.subject,
-    suggestions.pairs[0].subject,
+test('AI merge updates recommendations only and preserves manual selection', () => {
+  let state = chooseAnyEmoji(emptyAvatar(), 'first', '🐶', new Set());
+  state = mergeSuggestions(state, suggestions);
+  assert.deepEqual(state.selection, { first: '🐶', second: '' });
+  assert.deepEqual(state.nicknameSuggestions, suggestions.nicknameSuggestions);
+  assert.deepEqual(
+    state.recommendations.map((entry) => entry.emoji),
+    ['🐱', '🐶', '🦊', '🌟'],
   );
 });
 
-test('request validation bounds cost and excludes arbitrary URL inputs', () => {
+test('manual picker choices accept compatible emoji and reject incompatible data', () => {
+  let state = chooseAnyEmoji(emptyAvatar(), 'first', '🐱', new Set());
+  assert.equal(canChooseEmoji(state, 'second', '🔥', new Set(['🔥'])), true);
+  state = chooseAnyEmoji(state, 'second', '🔥', new Set(['🔥']));
+  assert.deepEqual(state.selection, { first: '🐱', second: '🔥' });
+  assert.deepEqual(selectedPair(state), {
+    first: '🐱',
+    second: '🔥',
+    imageUrl: pairImagePath('🐱', '🔥'),
+  });
+  assert.equal(chooseAnyEmoji(state, 'second', '🦄', new Set(['🔥'])), state);
+});
+
+test('compatibility data mirrors image lookup and random choices are valid', () => {
+  const compatible = compatibleEmojis('🐱');
+  assert.ok(compatible.includes('🔥'));
+  assert.ok(compatible.every((emoji) => upstreamImage('🐱', emoji)));
+  const pair = randomPair();
+  assert.ok(pair);
+  assert.ok(upstreamImage(pair.first, pair.second));
+});
+
+test('compatibility is unavailable until the current request succeeds', () => {
+  assert.equal(compatibilityReady('🐱', '🐱', true), false);
+  assert.equal(compatibilityReady('🐱', '', false), false);
+  assert.equal(compatibilityReady('🐱', '🐱', false), true);
+  assert.equal(compatibilityReady('', '', false), true);
+});
+
+test('request validation accepts only answers and refresh', () => {
   const input = {
-    stage: 1,
-    answers: { personality: '', nickname: '', description: '', style: 'wild' },
-    selection: emptyAvatar().selection,
+    answers: { personality: '', nickname: '', year: '2024' },
+    refresh: 0,
   };
   assert.ok(suggestionRequestSchema.safeParse(input).success);
   assert.equal(
-    suggestionRequestSchema.safeParse({ ...input, stage: 4 }).success,
+    suggestionRequestSchema.safeParse({ ...input, stage: 3 }).success,
     false,
   );
   assert.equal(
@@ -120,7 +104,7 @@ test('request validation bounds cost and excludes arbitrary URL inputs', () => {
   assert.equal(
     suggestionRequestSchema.safeParse({
       ...input,
-      answers: { ...input.answers, description: 'x'.repeat(501) },
+      answers: { ...input.answers, reflection: 'x'.repeat(501) },
     }).success,
     false,
   );

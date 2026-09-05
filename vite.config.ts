@@ -1,4 +1,5 @@
 import tailwindcss from '@tailwindcss/postcss';
+import { sites } from '@openai/sites-vite-plugin';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, loadEnv } from 'vite';
@@ -31,9 +32,9 @@ export default defineConfig(({ mode }) => ({
       plugins: [tailwindcss()],
     },
   },
-  plugins: [react()],
+  plugins: [react(), sites()],
   build: {
-    outDir: 'dist',
+    outDir: 'dist/client',
     sourcemap: false,
   },
 }));

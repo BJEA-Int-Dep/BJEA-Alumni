@@ -1,11 +1,8 @@
 import { useEffect, useState } from 'react';
-import type { AvatarStage } from '../../../shared/avatar';
-
-export const TOTAL_STEPS = 9;
+export const TOTAL_STEPS = 7;
 
 interface FlowLocation {
   step: number;
-  checkpoint: AvatarStage | null;
 }
 
 function readFlowLocation(): FlowLocation {
@@ -14,22 +11,13 @@ function readFlowLocation(): FlowLocation {
   const step = Number.isInteger(requestedStep)
     ? Math.min(TOTAL_STEPS - 1, Math.max(0, requestedStep - 1))
     : 0;
-  const requestedCheckpoint = Number(params.get('checkpoint'));
-  const checkpoint =
-    requestedCheckpoint === 1 ||
-    requestedCheckpoint === 2 ||
-    requestedCheckpoint === 3
-      ? requestedCheckpoint
-      : null;
-
-  return { step, checkpoint };
+  return { step };
 }
 
-function flowPath(step: number, checkpoint: AvatarStage | null = null) {
-  if (step === 0 && checkpoint === null) return '/create';
+function flowPath(step: number) {
+  if (step === 0) return '/create';
 
   const params = new URLSearchParams({ step: String(step + 1) });
-  if (checkpoint) params.set('checkpoint', String(checkpoint));
   return `/create?${params.toString()}`;
 }
 
@@ -47,16 +35,13 @@ export function useFlowNavigation() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  const navigateFlow = (
-    nextStep: number,
-    nextCheckpoint: AvatarStage | null = null,
-  ) => {
+  const navigateFlow = (nextStep: number) => {
     window.history.pushState(
       { ...window.history.state, alumniApp: true },
       '',
-      flowPath(nextStep, nextCheckpoint),
+      flowPath(nextStep),
     );
-    setLocation({ step: nextStep, checkpoint: nextCheckpoint });
+    setLocation({ step: nextStep });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 

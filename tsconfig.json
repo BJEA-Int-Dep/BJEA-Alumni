@@ -25,6 +25,7 @@
     "src",
     "shared",
     "server",
+    "vite.worker.config.ts",
     "tests",
     "vite.config.ts",
     "playwright.config.ts"

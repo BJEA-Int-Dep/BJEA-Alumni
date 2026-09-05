@@ -10,6 +10,7 @@ import { suggestionRequestSchema, type Suggestions } from '../shared/avatar.ts';
 import { suggest } from './openrouter.ts';
 import { ApiError } from './errors.ts';
 import { decodeEmoji, imageBytes } from './images.ts';
+import { compatibleEmojis, randomPair, supported } from './kitchen.ts';
 
 try {
   loadEnvFile('.env');
@@ -80,6 +81,19 @@ export function createApiServer(
       const url = new URL(req.url || '/', 'http://localhost');
       if (req.method === 'GET' && url.pathname === '/api/health')
         return json(res, 200, { ok: true });
+      if (req.method === 'GET' && url.pathname === '/api/avatar/emojis') {
+        const withEmoji = url.searchParams.get('with');
+        if (!withEmoji) return json(res, 200, { emojis: supported });
+        const emojis = compatibleEmojis(withEmoji);
+        if (!emojis.length)
+          throw new ApiError(400, '这个 emoji 暂时无法组合。');
+        return json(res, 200, { emojis });
+      }
+      if (req.method === 'GET' && url.pathname === '/api/avatar/random') {
+        const pair = randomPair();
+        if (!pair) throw new ApiError(503, '暂时找不到可用组合，请稍后重试。');
+        return json(res, 200, pair);
+      }
       if (
         req.method === 'GET' &&
         url.pathname.startsWith('/api/avatar/images/')
@@ -123,17 +137,6 @@ export function createApiServer(
       if (!parsed.success)
         throw new ApiError(400, '填写内容格式不正确或过长。');
       const input = parsed.data;
-      // Send only the information unlocked at this stage, even if a caller sends future answers.
-      if (input.stage < 3) {
-        delete input.answers.reflection;
-        delete input.answers.advice;
-      }
-      if (input.stage < 2) {
-        delete input.answers.year;
-        delete input.answers.status;
-        delete input.answers.place;
-        delete input.answers.direction;
-      }
       const ip = clientIp(req);
       const key = createHash('sha256')
         .update(ip + JSON.stringify(input))

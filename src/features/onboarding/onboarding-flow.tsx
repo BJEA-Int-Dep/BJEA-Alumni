@@ -1,8 +1,12 @@
-import { useCallback, type Dispatch, type SetStateAction } from 'react';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import {
+  useCallback,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from 'react';
+import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { AvatarPicker } from '@/features/avatar/avatar-picker';
 import { useAvatarSuggestions } from '@/features/avatar/use-avatar-suggestions';
 import { emptyAvatar, type AvatarState } from '../../../shared/avatar';
 import { answersFor, type DraftProfile } from './draft';
@@ -17,14 +21,24 @@ interface OnboardingFlowProps {
   onComplete: () => void;
 }
 
+const requiredFields: Array<[keyof DraftProfile, string]> = [
+  ['personalityId', '性格'],
+  ['year', '高中毕业年份'],
+  ['statusId', '现在的阶段'],
+  ['place', '现在在哪里'],
+  ['direction', '主要方向'],
+  ['reflection', '真心话'],
+  ['nickname', '昵称'],
+];
+
 export function OnboardingFlow({
   draft,
   onDraftChange,
   onExit,
   onComplete,
 }: OnboardingFlowProps) {
-  const { step, checkpoint, navigateFlow } = useFlowNavigation();
-  const avatar = draft.avatar ?? emptyAvatar();
+  const { step, navigateFlow } = useFlowNavigation();
+  const [validationError, setValidationError] = useState('');
   const changeAvatar = useCallback(
     (change: (current: AvatarState) => AvatarState) => {
       onDraftChange((current) => ({
@@ -34,38 +48,33 @@ export function OnboardingFlow({
     },
     [onDraftChange],
   );
-  const {
-    loading: avatarLoading,
-    error: avatarError,
-    refresh,
-  } = useAvatarSuggestions(
-    answersFor(draft, checkpoint ?? 1),
-    avatar,
+  const suggestions = useAvatarSuggestions(
+    answersFor(draft),
     changeAvatar,
-    checkpoint,
+    step === 6,
   );
-  const stage = step <= 2 ? 1 : step <= 6 ? 2 : 3;
   const progress = Math.round(((step + 1) / TOTAL_STEPS) * 100);
-
   const patchDraft = (patch: Partial<DraftProfile>) => {
+    setValidationError('');
     onDraftChange((current) => ({ ...current, ...patch }));
   };
-
-  const continueCheckpoint = () => {
-    if (checkpoint === 1) navigateFlow(3);
-    if (checkpoint === 2) navigateFlow(7);
-    if (checkpoint === 3) onComplete();
+  const complete = () => {
+    const missing = requiredFields.find(
+      ([key]) => !String(draft[key] ?? '').trim(),
+    );
+    if (missing) {
+      setValidationError(`请先补充：${missing[1]}`);
+      return;
+    }
+    onComplete();
   };
-
   const goBack = () => {
-    if (step === 0 && !checkpoint) {
+    if (step === 0) {
       onExit();
       return;
     }
     window.history.back();
   };
-
-  const questionKey = checkpoint ? `checkpoint-${checkpoint}` : `step-${step}`;
 
   return (
     <main className="min-h-screen bg-[#f4f1e9] pb-12 text-foreground">
@@ -82,14 +91,7 @@ export function OnboardingFlow({
           </Button>
           <div className="min-w-0 flex-1">
             <div className="mb-1.5 flex items-center justify-between gap-3">
-              <span className="text-xs font-black">
-                STAGE {stage} ·{' '}
-                {stage === 1
-                  ? '你是哪种人'
-                  : stage === 2
-                    ? '后来去哪了'
-                    : '你的故事'}
-              </span>
+              <span className="text-xs font-black">创建你的角色卡</span>
               <span className="text-xs font-bold tabular-nums text-muted-foreground">
                 {step + 1} / {TOTAL_STEPS}
               </span>
@@ -102,88 +104,40 @@ export function OnboardingFlow({
           </div>
         </div>
       </header>
-
       <div className="mx-auto grid max-w-6xl gap-5 px-4 pt-5 sm:px-8 sm:pt-8 lg:grid-cols-[minmax(0,1fr)_410px] lg:items-start lg:gap-10">
         <section className="order-2 min-h-[520px] rounded-[28px] bg-[#fffaf1] p-5 shadow-[0_20px_60px_rgba(57,47,33,0.08)] ring-1 ring-black/[0.05] sm:p-8 lg:order-1 lg:min-h-[610px]">
           <div
-            key={questionKey}
+            key={step}
             className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-300"
           >
-            {checkpoint ? (
-              <div className="flex min-h-[490px] flex-col items-center justify-center text-center">
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-[#df5035]">
-                  Stage {checkpoint} clear
-                </p>
-                <h1 className="mt-2 text-balance text-3xl font-black tracking-tight sm:text-4xl">
-                  {checkpoint === 1
-                    ? '你的角色，有了第一点灵感'
-                    : checkpoint === 2
-                      ? '把人生支线，揉进头像里'
-                      : '最后一笔，写进你的故事'}
-                </h1>
-                <p className="mt-3 max-w-md text-sm font-medium leading-6 text-muted-foreground">
-                  AI 提供灵感，你来决定长什么样。已保留的 emoji
-                  不会被新推荐覆盖。
-                </p>
-                <div className="mt-6 w-full">
-                  <AvatarPicker
-                    avatar={avatar}
-                    onChange={changeAvatar}
-                    loading={avatarLoading}
-                    error={avatarError}
-                    onRefresh={refresh}
-                  />
-                </div>
-                <div className="mt-6 flex w-full max-w-md flex-col gap-3 sm:flex-row">
-                  <Button
-                    onClick={continueCheckpoint}
-                    disabled={avatarLoading}
-                    className="h-12 flex-1 rounded-2xl bg-[#24282c] font-black text-white hover:bg-black"
-                  >
-                    {avatarLoading
-                      ? '正在寻找你的配方…'
-                      : checkpoint === 3
-                        ? '使用这张角色卡'
-                        : '继续下一阶段'}{' '}
-                    <ArrowRight className="size-4" />
-                  </Button>
-                </div>
-                <p className="mt-3 text-[11px] font-medium text-muted-foreground">
-                  {avatarError
-                    ? '推荐暂时不可用也没关系，可以保留当前头像继续。'
-                    : '灰色的 emoji 暂时无法与已保留的另一枚组合。'}
-                </p>
-              </div>
+            <Questions
+              step={step}
+              draft={draft}
+              patchDraft={patchDraft}
+              navigateFlow={navigateFlow}
+              onComplete={complete}
+              aiLoading={suggestions.loading}
+              aiError={suggestions.error}
+            />
+            {validationError ? (
+              <p
+                role="alert"
+                className="mt-6 rounded-xl bg-[#fff0dc] p-3 text-xs font-bold leading-5 text-[#885421]"
+              >
+                {validationError}
+              </p>
             ) : null}
-
-            {!checkpoint && (
-              <Questions
-                step={step}
-                draft={draft}
-                patchDraft={patchDraft}
-                navigateFlow={navigateFlow}
-              />
-            )}
           </div>
         </section>
-
         <div className="order-1 lg:order-2">
-          <ProfilePreview draft={draft} />
-          {!checkpoint && avatar.subjects.length > 0 && (
-            <details className="mt-5 rounded-2xl border border-black/[0.07] bg-[#fffaf1] p-4">
-              <summary className="cursor-pointer text-sm font-black">
-                调整我的 emoji 配方
-              </summary>
-              <div className="mt-4">
-                <AvatarPicker
-                  avatar={avatar}
-                  onChange={changeAvatar}
-                  loading={false}
-                  error=""
-                />
-              </div>
-            </details>
-          )}
+          <ProfilePreview
+            draft={draft}
+            patchDraft={patchDraft}
+            changeAvatar={changeAvatar}
+            loading={step === 6 && suggestions.loading}
+            error={step === 6 ? suggestions.error : ''}
+            onRefresh={step === 6 ? suggestions.refresh : undefined}
+          />
         </div>
       </div>
     </main>

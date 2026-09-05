@@ -2,14 +2,17 @@ import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { test } from 'node:test';
 import { createApiServer } from '../server/index.ts';
-import { emptyAvatar, type SuggestionRequest } from '../shared/avatar.ts';
+import { type SuggestionRequest } from '../shared/avatar.ts';
 
-test('API validates, strips future answers, deduplicates requests, and serves cached images', async (t) => {
+test('API validates suggestions, deduplicates requests, and serves cached images', async (t) => {
   const seen: SuggestionRequest[] = [];
   const server = createApiServer({
     suggest: async (input) => {
       seen.push(input);
-      return { subjects: [], traits: [], pairs: [] };
+      return {
+        recommendations: [],
+        nicknameSuggestions: ['小行星', '周五下班', '十一号'],
+      };
     },
     image: async () => ({
       bytes: Buffer.from('test-image'),
@@ -27,16 +30,15 @@ test('API validates, strips future answers, deduplicates requests, and serves ca
   assert.ok(addr && typeof addr !== 'string');
   const base = `http://127.0.0.1:${addr.port}`;
   const input = {
-    stage: 1,
     answers: {
       personality: '',
       nickname: '',
-      description: '',
-      style: 'playful',
+      year: '2024',
+      status: '已经工作',
       place: 'future',
       advice: 'future',
     },
-    selection: emptyAvatar().selection,
+    refresh: 0,
   };
   const post = (body: unknown, headers = {}) =>
     fetch(`${base}/api/avatar/suggestions`, {
@@ -46,17 +48,31 @@ test('API validates, strips future answers, deduplicates requests, and serves ca
     });
 
   assert.equal((await fetch(`${base}/api/health`)).status, 200);
+  const emojiList = await fetch(`${base}/api/avatar/emojis`);
+  assert.equal(emojiList.status, 200);
+  const emojiData = (await emojiList.json()) as { emojis: string[] };
+  assert.ok(emojiData.emojis.includes('🐱'));
+  const compatible = await fetch(
+    `${base}/api/avatar/emojis?with=${encodeURIComponent('🐱')}`,
+  );
+  assert.equal(compatible.status, 200);
+  assert.ok(
+    ((await compatible.json()) as { emojis: string[] }).emojis.includes('🔥'),
+  );
+  const random = await fetch(`${base}/api/avatar/random`);
+  assert.equal(random.status, 200);
+  assert.deepEqual(Object.keys(await random.json()).sort(), [
+    'first',
+    'second',
+  ]);
   const responses = await Promise.all([post(input), post(input)]);
   assert.ok(responses.every((response) => response.status === 200));
   assert.equal(seen.length, 1);
-  assert.equal(seen[0].answers.place, undefined);
-  assert.equal(seen[0].answers.advice, undefined);
-  assert.equal((await post({ ...input, stage: 2 })).status, 200);
+  assert.equal(seen[0].answers.place, 'future');
+  assert.equal(seen[0].answers.advice, 'future');
+  assert.equal((await post({ ...input, refresh: 1 })).status, 200);
   assert.equal(seen[1].answers.place, 'future');
-  assert.equal(seen[1].answers.advice, undefined);
-  assert.equal((await post({ ...input, stage: 3 })).status, 200);
-  assert.equal(seen[2].answers.advice, 'future');
-  assert.equal((await post({ ...input, stage: 4 })).status, 400);
+  assert.equal((await post({ ...input, stage: 3 })).status, 400);
   assert.equal(
     (await post(input, { Origin: 'https://evil.example' })).status,
     403,
@@ -113,14 +129,11 @@ test('upstream failures return sanitized errors', async (t) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        stage: 1,
         answers: {
           personality: '',
           nickname: '',
-          description: '',
-          style: 'playful',
         },
-        selection: emptyAvatar().selection,
+        refresh: 0,
       }),
     },
   );
