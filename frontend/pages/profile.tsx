@@ -32,24 +32,13 @@ type VisibilityField = 'year' | 'place' | 'direction' | 'reflection' | 'advice';
 
 type VisibilityState = Record<VisibilityField, boolean>;
 
-const visibilityLabels: Array<{
-  key: VisibilityField;
-  label: string;
-  note: string;
-}> = [
-  { key: 'year', label: '毕业年份', note: '帮助学弟学妹理解时间线' },
-  { key: 'place', label: '后来去了哪里', note: '学校、城市或工作地点' },
-  { key: 'direction', label: '目前方向', note: '专业、行业或探索方向' },
-  { key: 'reflection', label: '一段真心话', note: '你如何看待现在这条路' },
-  { key: 'advice', label: '给学弟学妹的话', note: '主页底部的留言' },
-];
-
 interface ProfileViewProps {
   profile: AlumniProfile;
   isOwner?: boolean;
   onBack: () => void;
   onHome: () => void;
   onCreate: () => void;
+  onEdit: () => void;
 }
 
 function PrivacyBadge({ isPublic }: { isPublic: boolean }) {
@@ -71,17 +60,17 @@ export function ProfileView({
   onBack,
   onHome,
   onCreate,
+  onEdit,
 }: ProfileViewProps) {
-  const [visibilityOpen, setVisibilityOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [shareMessage, setShareMessage] = useState('');
-  const [visibility, setVisibility] = useState<VisibilityState>({
+  const visibility: VisibilityState = {
     year: true,
     place: true,
     direction: true,
     reflection: true,
     advice: true,
-  });
+  };
 
   const detailRows: Array<{
     key: VisibilityField | 'status';
@@ -104,14 +93,6 @@ export function ProfileView({
       value: profile.direction,
     },
   ];
-
-  const toggleVisibility = (key: VisibilityField) => {
-    setVisibility((current) => ({ ...current, [key]: !current[key] }));
-  };
-
-  const saveVisibility = () => {
-    setVisibilityOpen(false);
-  };
 
   return (
     <main className="min-h-screen bg-background pb-16 text-foreground">
@@ -143,34 +124,13 @@ export function ProfileView({
         </Button>
 
         {isOwner ? (
-          <div className="mb-5 rounded-2xl border border-[#64a94e]/25 bg-[#edf5e6] p-4 sm:flex sm:items-center sm:justify-between sm:gap-5">
-            <div className="flex items-start gap-3">
-              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-white text-[#4f9445] shadow-sm">
-                <Sparkles className="size-5" />
-              </span>
-              <div>
-                <p className="font-black">你的 Profile 已经长好了</p>
-                <p className="mt-0.5 text-xs font-medium leading-5 text-[#52714e]">
-                  这是别人看到的同款页面；发布前仍可调整公开内容。
-                </p>
-              </div>
-            </div>
-            <div className="mt-3 flex gap-2 sm:mt-0">
-              <Button
-                variant="outline"
-                onClick={() => setVisibilityOpen(true)}
-                className="h-10 flex-1 rounded-xl border-black/10 bg-white px-3 font-black sm:flex-none"
-              >
-                <Pencil className="size-4" /> 可见性
-              </Button>
-              <Button
-                onClick={() => {
-                  setShareOpen(true);
-                }}
-                className="h-10 flex-1 rounded-xl bg-[#24282c] px-3 font-black text-white hover:bg-black sm:flex-none"
-              >
-                <Share2 className="size-4" /> 分享
-              </Button>
+          <div className="mb-5 flex items-center gap-3 rounded-2xl border border-[#64a94e]/25 bg-[#edf5e6] p-4">
+            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-white text-[#4f9445] shadow-sm">
+              <Sparkles className="size-4" />
+            </span>
+            <div>
+              <p className="font-black">你的 Profile 已经长好了</p>
+              <p className="mt-0.5 text-xs font-medium text-[#52714e]">这是别人看到的同款页面。</p>
             </div>
           </div>
         ) : null}
@@ -187,7 +147,7 @@ export function ProfileView({
                   CLASS OF &apos;{profile.year.slice(-2)}
                 </span>
                 <span className="rounded-full bg-black/15 px-3 py-1.5 text-[11px] font-black text-white backdrop-blur-sm">
-                  亦实校友角色卡
+                  亦中校友角色卡
                 </span>
               </div>
               <EmojiAvatar
@@ -270,6 +230,17 @@ export function ProfileView({
           </div>
         </article>
 
+        {isOwner ? (
+          <div className="mt-5 flex gap-2 rounded-2xl border border-[#64a94e]/25 bg-[#edf5e6] p-4 sm:justify-end">
+              <Button variant="outline" onClick={onEdit} className="h-10 flex-1 rounded-xl border-black/10 bg-white px-4 font-black sm:flex-none">
+                <Pencil className="size-4" /> 继续修改
+              </Button>
+              <Button onClick={() => setShareOpen(true)} className="h-10 flex-1 rounded-xl bg-[#24282c] px-4 font-black text-white hover:bg-black sm:flex-none">
+                <Share2 className="size-4" /> 分享
+              </Button>
+          </div>
+        ) : null}
+
         <aside className="mt-6 rounded-[24px] border border-[#1680bd]/18 bg-[#eaf5fa] p-5 sm:flex sm:items-center sm:justify-between sm:gap-6 sm:p-6">
           <div className="flex items-start gap-3">
             <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-white text-[#176e9e] shadow-sm">
@@ -298,60 +269,6 @@ export function ProfileView({
           </div>
         ) : null}
       </div>
-
-      <Dialog open={visibilityOpen} onOpenChange={setVisibilityOpen}>
-        <DialogContent className="max-h-[88vh] max-w-lg overflow-y-auto rounded-[26px] bg-[#fffaf1] p-6 sm:p-7">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-black tracking-tight">
-              哪些内容公开？
-            </DialogTitle>
-            <DialogDescription className="leading-6">
-              这个编辑器只模拟未来的 Public / Private 结构，不会上传任何数据。
-            </DialogDescription>
-          </DialogHeader>
-          <div className="divide-y divide-black/[0.07] overflow-hidden rounded-2xl border border-black/[0.07] bg-white">
-            {visibilityLabels.map((item) => (
-              <button
-                key={item.key}
-                type="button"
-                onClick={() => toggleVisibility(item.key)}
-                className="flex w-full items-center gap-4 px-4 py-3.5 text-left transition hover:bg-black/[0.025] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-[#1680bd]/20"
-              >
-                <span
-                  className={`grid size-9 shrink-0 place-items-center rounded-xl ${
-                    visibility[item.key]
-                      ? 'bg-[#e8f3f8] text-[#17648e]'
-                      : 'bg-[#eceae5] text-[#666b6e]'
-                  }`}
-                >
-                  {visibility[item.key] ? (
-                    <Eye className="size-4" />
-                  ) : (
-                    <Lock className="size-4" />
-                  )}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-black">{item.label}</span>
-                  <span className="mt-0.5 block text-xs font-medium text-muted-foreground">
-                    {item.note}
-                  </span>
-                </span>
-                <span className="text-xs font-black text-muted-foreground">
-                  {visibility[item.key] ? 'Public' : 'Private'}
-                </span>
-              </button>
-            ))}
-          </div>
-          <DialogFooter className="mt-2 -mx-6 -mb-6 rounded-b-[26px] px-6 sm:-mx-7 sm:-mb-7 sm:px-7">
-            <Button
-              onClick={saveVisibility}
-              className="h-11 w-full rounded-xl bg-[#24282c] font-black text-white hover:bg-black sm:w-auto sm:px-6"
-            >
-              保存设置
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <Dialog
         open={shareOpen}
@@ -404,7 +321,7 @@ export function ProfileView({
               </p>
               <div className="mt-6 flex items-end justify-between border-t border-white/10 pt-4">
                 <div>
-                  <p className="text-xs font-black">亦实校友宇宙</p>
+                  <p className="text-xs font-black">亦中校友宇宙</p>
                   <p className="mt-0.5 text-[10px] font-medium text-white/45">
                     300 个人，300 条不一样的路
                   </p>

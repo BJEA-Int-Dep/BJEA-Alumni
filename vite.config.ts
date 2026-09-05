@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, loadEnv } from 'vite';
 
-const sourceRoot = fileURLToPath(new URL('./src', import.meta.url));
+const sourceRoot = fileURLToPath(new URL('./frontend', import.meta.url));
 
 export default defineConfig(({ mode }) => ({
   server: {

@@ -141,6 +141,7 @@ export default function AlumniApp() {
         onBack={goHome}
         onHome={goHome}
         onCreate={requestCreate}
+        onEdit={() => navigate('/create?step=7', 'create')}
       />
     );
   }

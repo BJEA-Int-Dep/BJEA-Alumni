@@ -15,16 +15,16 @@
     "esModuleInterop": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./frontend/*"]
     },
     "types": ["vite/client", "node"],
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },
   "include": [
-    "src",
+    "frontend",
     "shared",
-    "server",
+    "backend",
     "vite.config.ts"
   ],
   "exclude": ["dist", "node_modules"]

@@ -4,7 +4,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ArrowRight, House } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useAvatarSuggestions } from '@/features/avatar/use-avatar-suggestions';
@@ -59,6 +59,10 @@ export function OnboardingFlow({
     onDraftChange((current) => ({ ...current, ...patch }));
   };
   const complete = () => {
+    if (draft.statusId === 'other' && !draft.statusCustom.trim()) {
+      setValidationError('请先补充：现在的状态');
+      return;
+    }
     const missing = requiredFields.find(
       ([key]) => !String(draft[key] ?? '').trim(),
     );
@@ -68,14 +72,6 @@ export function OnboardingFlow({
     }
     onComplete();
   };
-  const goBack = () => {
-    if (step === 0) {
-      onExit();
-      return;
-    }
-    window.history.back();
-  };
-
   return (
     <main className="min-h-screen bg-[#f4f1e9] pb-12 text-foreground">
       <header className="sticky top-0 z-30 border-b border-black/[0.06] bg-[#f4f1e9]/92 backdrop-blur-xl">
@@ -83,11 +79,11 @@ export function OnboardingFlow({
           <Button
             variant="ghost"
             size="icon-lg"
-            onClick={goBack}
+            onClick={onExit}
             className="size-10 rounded-full hover:bg-black/[0.06]"
-            aria-label={step === 0 ? '退出创建' : '返回上一题'}
+            aria-label="返回首页"
           >
-            <ArrowLeft className="size-5" />
+            <House className="size-5" />
           </Button>
           <div className="min-w-0 flex-1">
             <div className="mb-1.5 flex items-center justify-between gap-3">
@@ -106,6 +102,28 @@ export function OnboardingFlow({
       </header>
       <div className="mx-auto grid max-w-6xl gap-5 px-4 pt-5 sm:px-8 sm:pt-8 lg:grid-cols-[minmax(0,1fr)_410px] lg:items-start lg:gap-10">
         <section className="order-2 min-h-[520px] rounded-[28px] bg-[#fffaf1] p-5 shadow-[0_20px_60px_rgba(57,47,33,0.08)] ring-1 ring-black/[0.05] sm:p-8 lg:order-1 lg:min-h-[610px]">
+          <div className="mb-5 flex gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              disabled={step === 0}
+              onClick={() => navigateFlow(step - 1)}
+              aria-label="上一题"
+              className="rounded-full"
+            >
+              <ArrowLeft className="size-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              disabled={step === TOTAL_STEPS - 1}
+              onClick={() => navigateFlow(step + 1)}
+              aria-label="下一题"
+              className="rounded-full"
+            >
+              <ArrowRight className="size-5" />
+            </Button>
+          </div>
           <div
             key={step}
             className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-300"
@@ -118,6 +136,7 @@ export function OnboardingFlow({
               onComplete={complete}
               aiLoading={suggestions.loading}
               aiError={suggestions.error}
+              onAiRefresh={suggestions.refresh}
             />
             {validationError ? (
               <p
@@ -134,9 +153,9 @@ export function OnboardingFlow({
             draft={draft}
             patchDraft={patchDraft}
             changeAvatar={changeAvatar}
-            loading={step === 6 && suggestions.loading}
-            error={step === 6 ? suggestions.error : ''}
-            onRefresh={step === 6 ? suggestions.refresh : undefined}
+            loading={suggestions.loading}
+            error={suggestions.error}
+            onRefresh={suggestions.refresh}
           />
         </div>
       </div>

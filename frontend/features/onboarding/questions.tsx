@@ -1,4 +1,5 @@
-import { ArrowRight, Check } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { ArrowRight, Check, RotateCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -21,24 +22,28 @@ interface QuestionsProps {
   onComplete: () => void;
   aiLoading?: boolean;
   aiError?: string;
+  onAiRefresh?: () => void;
 }
 
 function Choice({
   emoji,
   label,
   note,
+  selected = false,
   onClick,
 }: {
   emoji?: string;
   label: string;
   note?: string;
+  selected?: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="group flex min-h-16 w-full items-center gap-3 rounded-2xl border border-black/[0.08] bg-white px-4 py-3 text-left shadow-[0_6px_22px_rgba(50,42,32,0.05)] transition hover:-translate-y-0.5 hover:border-[#1680bd]/35 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#1680bd]/20"
+      aria-pressed={selected}
+      className={`group flex min-h-16 w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left shadow-[0_6px_22px_rgba(50,42,32,0.05)] transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#1680bd]/20 ${selected ? 'border-[#ee573c] bg-[#fff0e7] ring-2 ring-[#ee573c]/20' : 'border-black/[0.08] bg-white hover:border-[#1680bd]/35'}`}
     >
       {emoji ? (
         <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#f3f0e9] text-2xl">
@@ -58,6 +63,86 @@ function Choice({
   );
 }
 
+const YEARS = ['', ...Array.from({ length: 10 }, (_, index) => String(2017 + index))];
+
+function YearWheel({ value, onChange }: { value: string; onChange: (year: string) => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const wheelResetRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const wheelDeltaRef = useRef(0);
+  const onChangeRef = useRef(onChange);
+  const activeRef = useRef(value);
+  const [active, setActive] = useState(value);
+  onChangeRef.current = onChange;
+
+  useEffect(() => {
+    if (value === activeRef.current) return;
+    const index = Math.max(0, YEARS.indexOf(value));
+    ref.current?.scrollTo({ top: index * 56 });
+    activeRef.current = value;
+    setActive(value);
+  }, [value]);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    const handleWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      wheelDeltaRef.current += event.deltaY;
+      clearTimeout(wheelResetRef.current);
+      wheelResetRef.current = setTimeout(() => (wheelDeltaRef.current = 0), 100);
+      if (Math.abs(wheelDeltaRef.current) < 30) return;
+      const direction = wheelDeltaRef.current > 0 ? 1 : -1;
+      wheelDeltaRef.current = 0;
+      const current = Math.max(0, YEARS.indexOf(activeRef.current));
+      const next = Math.min(YEARS.length - 1, Math.max(0, current + direction));
+      const year = YEARS[next];
+      activeRef.current = year;
+      setActive(year);
+      element.scrollTop = next * 56;
+      clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => onChangeRef.current(year), 120);
+    };
+    element.addEventListener('wheel', handleWheel, { passive: false });
+    return () => {
+      element.removeEventListener('wheel', handleWheel);
+      clearTimeout(timerRef.current);
+      clearTimeout(wheelResetRef.current);
+    };
+  }, []);
+
+  return (
+    <div className="relative mt-7 h-[280px] max-w-xs overflow-hidden rounded-2xl border border-black/10 bg-white shadow-inner">
+      <div className="pointer-events-none absolute inset-x-3 top-1/2 z-10 h-14 -translate-y-1/2 rounded-xl bg-[#fff0e7] ring-1 ring-[#ee573c]/20" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-12 bg-gradient-to-b from-white to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-12 bg-gradient-to-t from-white to-transparent" />
+      <div
+        ref={ref}
+        onScroll={(event) => {
+          const index = Math.round(event.currentTarget.scrollTop / 56);
+          const year = YEARS[Math.min(YEARS.length - 1, Math.max(0, index))];
+          activeRef.current = year;
+          setActive(year);
+          clearTimeout(timerRef.current);
+          timerRef.current = setTimeout(() => onChange(year), 120);
+        }}
+        className="relative z-10 h-full snap-y snap-proximity overflow-y-auto py-28 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        {YEARS.map((year, index) => (
+          <button
+            key={year || 'empty'}
+            type="button"
+            onClick={() => ref.current?.scrollTo({ top: index * 56, behavior: 'smooth' })}
+            className={`flex h-14 w-full snap-center items-center justify-center text-xl transition ${active === year ? 'font-black text-foreground' : 'font-bold text-muted-foreground/45'}`}
+          >
+            {year || '选择年份'}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function Questions({
   step,
   draft,
@@ -66,22 +151,20 @@ export function Questions({
   onComplete,
   aiLoading = false,
   aiError = '',
+  onAiRefresh,
 }: QuestionsProps) {
   const choosePersonality = (id: string) => {
     const option = PERSONALITIES.find((item) => item.id === id);
     if (!option) return;
     patchDraft({
       personalityId: option.id,
-      personalityCustom: '',
-      emoji: option.emoji,
-      tone: option.tone,
+      personalityCustom: option.summary,
       summary: option.summary,
     });
-    navigateFlow(1);
   };
   const chooseStatus = (statusId: StatusId) => {
-    patchDraft({ statusId });
-    navigateFlow(3);
+    patchDraft({ statusId, statusCustom: '' });
+    if (statusId !== 'other') navigateFlow(3);
   };
   const currentStatus = draft.statusId || 'university';
   const headings = [
@@ -144,6 +227,10 @@ export function Questions({
                 emoji={option.emoji}
                 label={option.label}
                 note={option.note}
+                selected={
+                  draft.personalityId === option.id &&
+                  draft.personalityCustom === option.summary
+                }
                 onClick={() => choosePersonality(option.id)}
               />
             ))}
@@ -159,6 +246,7 @@ export function Questions({
                 patchDraft({
                   personalityId: 'custom',
                   personalityCustom: event.target.value,
+                  summary: event.target.value,
                 })
               }
               placeholder="例如：一只正在学会游泳的企鹅"
@@ -166,21 +254,11 @@ export function Questions({
               className="mt-3 h-12 rounded-xl border-black/10 bg-white"
             />
             <Button
-              onClick={() => {
-                if (draft.personalityCustom.trim()) {
-                  patchDraft({
-                    personalityId: 'custom',
-                    emoji: '✨',
-                    tone: 'graphite',
-                    summary: draft.personalityCustom.trim(),
-                  });
-                  next();
-                }
-              }}
+              onClick={next}
               disabled={!draft.personalityCustom.trim()}
               className="mt-3 rounded-xl bg-[#24282c] font-black text-white"
             >
-              用这句话继续 <ArrowRight className="size-4" />
+              下一题 <ArrowRight className="size-4" />
             </Button>
           </div>
         </div>
@@ -197,21 +275,7 @@ export function Questions({
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
             {description}
           </p>
-          <select
-            aria-label="高中毕业年份"
-            value={draft.year}
-            onChange={(event) => patchDraft({ year: event.target.value })}
-            className="mt-8 h-14 w-full rounded-2xl border border-black/10 bg-white px-4 text-base font-black shadow-sm"
-          >
-            <option value="">选择年份</option>
-            {Array.from({ length: 10 }, (_, index) => String(2017 + index)).map(
-              (year) => (
-                <option key={year} value={year}>
-                  {year}
-                </option>
-              ),
-            )}
-          </select>
+          <YearWheel value={draft.year} onChange={(year) => patchDraft({ year })} />
           <Button
             onClick={next}
             disabled={!draft.year}
@@ -240,10 +304,25 @@ export function Questions({
                 emoji={option.emoji}
                 label={option.label}
                 note={option.note}
+                selected={draft.statusId === option.id}
                 onClick={() => chooseStatus(option.id)}
               />
             ))}
           </div>
+          {draft.statusId === 'other' ? (
+            <div className="mt-5 rounded-2xl border border-dashed border-black/15 bg-white/55 p-4">
+              <Input
+                value={draft.statusCustom}
+                onChange={(event) => patchDraft({ statusCustom: event.target.value })}
+                placeholder="例如：正在准备考试、在做个人项目"
+                maxLength={80}
+                className="h-12 rounded-xl border-black/10 bg-white"
+              />
+              <Button onClick={next} disabled={!draft.statusCustom.trim()} className="mt-3 rounded-xl bg-[#24282c] font-black text-white">
+                下一题 <ArrowRight className="size-4" />
+              </Button>
+            </div>
+          ) : null}
         </div>
       );
     case 3:
@@ -425,9 +504,19 @@ export function Questions({
           ) : null}
           {draft.avatar?.nicknameSuggestions?.length ? (
             <div className="mt-7">
-              <p className="text-xs font-black text-muted-foreground">
-                AI 想到的几个名字
-              </p>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs font-black text-muted-foreground">AI 想到的几个名字</p>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={onAiRefresh}
+                  disabled={aiLoading}
+                  className="h-8 rounded-full px-2.5 text-xs font-black"
+                >
+                  <RotateCw className={`size-3.5 ${aiLoading ? 'animate-spin' : ''}`} />
+                  {aiLoading ? '生成中' : '重新生成'}
+                </Button>
+              </div>
               <div className="mt-3 flex flex-wrap gap-2">
                 {draft.avatar.nicknameSuggestions.map((item) => (
                   <button
@@ -455,7 +544,7 @@ export function Questions({
             disabled={!draft.nickname.trim()}
             className="mt-8 h-12 rounded-2xl bg-[#ee573c] px-7 font-black text-white"
           >
-            <Check className="size-4" /> 使用这个昵称
+            <Check className="size-4" /> 大功告成
           </Button>
         </div>
       );

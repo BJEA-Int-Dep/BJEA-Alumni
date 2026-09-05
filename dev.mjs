@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process';
 const children = [
   spawn(
     process.execPath,
-    ['node_modules/tsx/dist/cli.mjs', 'watch', 'server/index.ts'],
+    ['node_modules/tsx/dist/cli.mjs', 'watch', 'backend/index.ts'],
     { stdio: 'inherit' },
   ),
   spawn(

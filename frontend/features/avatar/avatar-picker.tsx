@@ -192,12 +192,12 @@ export function AvatarPicker({
   const selected = selectedPair(avatar);
 
   return (
-    <div className="space-y-5 text-left" aria-busy={loading}>
-      <div className="flex items-center justify-between gap-3">
+    <div className="min-w-0 max-w-full space-y-5 overflow-hidden text-left" aria-busy={loading}>
+      <div className="flex min-w-0 flex-col items-start gap-2">
         <p className="flex items-center gap-2 text-sm font-black">
           <Sparkles className="size-4 text-[#ee573c]" /> 自己调一张头像
         </p>
-        <div className="flex items-center gap-1">
+        <div className="flex max-w-full flex-wrap items-center gap-1">
           <Button
             variant="ghost"
             onClick={() => void randomize()}
@@ -212,17 +212,6 @@ export function AvatarPicker({
           >
             <Trash2 className="size-3.5" /> 清空
           </Button>
-          {onRefresh ? (
-            <Button
-              variant="ghost"
-              onClick={onRefresh}
-              disabled={loading}
-              className="rounded-full px-2.5 text-xs"
-            >
-              <RotateCw className={loading ? 'animate-spin' : ''} />{' '}
-              {loading ? '寻找…' : error ? '重试' : '换一批'}
-            </Button>
-          ) : null}
         </div>
       </div>
       <p
@@ -253,9 +242,9 @@ export function AvatarPicker({
 
       <section
         aria-label="头像配方"
-        className="rounded-2xl border border-black/[0.07] bg-white p-4"
+        className="min-w-0 overflow-hidden rounded-2xl border border-black/[0.07] bg-white p-3 sm:p-4"
       >
-        <div className="flex items-center justify-center gap-3">
+        <div className="flex items-center justify-center gap-2 sm:gap-3">
           {slots.map((slot, index) => {
             const value = avatar.selection[slot];
             const active = activeSlot === slot;
@@ -271,7 +260,7 @@ export function AvatarPicker({
                   onClick={() => setActiveSlot(slot)}
                   aria-label={`选择第${index + 1}枚 emoji`}
                   aria-pressed={active}
-                  className={`grid size-16 place-items-center rounded-2xl border-2 text-4xl transition focus-visible:outline-2 focus-visible:outline-[#1680bd] ${active ? 'border-[#ee573c] bg-[#fff0e7]' : 'border-black/[0.08] bg-[#f7f5ef] hover:border-[#ee573c]/40'}`}
+                  className={`grid size-14 place-items-center rounded-2xl border-2 text-3xl transition focus-visible:outline-2 focus-visible:outline-[#1680bd] sm:size-16 sm:text-4xl ${active ? 'border-[#ee573c] bg-[#fff0e7]' : 'border-black/[0.08] bg-[#f7f5ef] hover:border-[#ee573c]/40'}`}
                 >
                   {value || (
                     <span className="text-2xl text-muted-foreground">＋</span>
@@ -281,13 +270,13 @@ export function AvatarPicker({
             );
           })}
           <span className="text-xl font-black text-muted-foreground">=</span>
-          <div className="grid size-16 place-items-center rounded-2xl bg-[#f4f1e9]">
+          <div className="grid size-14 place-items-center rounded-2xl bg-[#f4f1e9] sm:size-16">
             {selected ? (
               <EmojiAvatar
                 imageUrl={selected.imageUrl}
                 emoji={selected.first}
                 label="合成头像"
-                className="size-14 text-3xl"
+                className="size-12 text-3xl sm:size-14"
               />
             ) : (
               <span className="text-2xl text-muted-foreground">?</span>
@@ -305,11 +294,20 @@ export function AvatarPicker({
           <p className="text-xs font-black text-muted-foreground">
             AI 挑的，觉得像你
           </p>
-          <span className="text-[11px] text-muted-foreground">
-            点一下就能使用
-          </span>
+          {onRefresh ? (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={onRefresh}
+              disabled={loading}
+              className="h-8 rounded-full px-2.5 text-xs font-black"
+            >
+              <RotateCw className={`size-3.5 ${loading ? 'animate-spin' : ''}`} />
+              {loading ? '生成中' : '换一换'}
+            </Button>
+          ) : null}
         </div>
-        <div className="flex gap-2 overflow-x-auto pb-1">
+        <div className="flex max-w-full gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {recommendations.length ? (
             recommendations.map((entry) => (
               <button
@@ -341,7 +339,7 @@ export function AvatarPicker({
 
       <section
         aria-label="全部可用 emoji"
-        className="rounded-2xl border border-black/[0.07] bg-white p-4"
+        className="min-w-0 overflow-hidden rounded-2xl border border-black/[0.07] bg-white p-3 sm:p-4"
       >
         <div className="mb-3 flex items-center justify-between gap-2">
           <p className="text-sm font-black">全部可组合的 emoji</p>
@@ -349,7 +347,7 @@ export function AvatarPicker({
             {allEmojis.length || '…'}
           </span>
         </div>
-        <div className="grid max-h-80 grid-cols-8 gap-1.5 overflow-y-auto pr-1 sm:grid-cols-9">
+        <div className="grid max-h-80 grid-cols-6 gap-1.5 overflow-y-auto pr-1 [scrollbar-width:none] sm:grid-cols-8 lg:grid-cols-9 [&::-webkit-scrollbar]:hidden">
           {allEmojis.map((emoji) => {
             const enabled = allowed(activeSlot, emoji);
             const chosen = avatar.selection[activeSlot] === emoji;

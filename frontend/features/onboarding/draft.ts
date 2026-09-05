@@ -16,6 +16,7 @@ export interface DraftProfile {
   avatar?: AvatarState;
   year: string;
   statusId: StatusId | '';
+  statusCustom: string;
   place: string;
   direction: string;
   reflection: string;
@@ -33,6 +34,7 @@ export function createDefaultDraft(): DraftProfile {
     avatar: emptyAvatar(),
     year: '',
     statusId: '',
+    statusCustom: '',
     place: '',
     direction: '',
     reflection: '',
@@ -41,9 +43,9 @@ export function createDefaultDraft(): DraftProfile {
 }
 
 export function draftToProfile(draft: DraftProfile): AlumniProfile {
-  const status =
-    STATUS_OPTIONS.find((option) => option.id === draft.statusId)?.label ??
-    '还在探索';
+  const status = draft.statusId === 'other'
+    ? draft.statusCustom || '其他状态'
+    : STATUS_OPTIONS.find((option) => option.id === draft.statusId)?.label ?? '还在探索';
 
   return {
     id: 'my-profile',
@@ -75,8 +77,9 @@ export function answersFor(draft: DraftProfile) {
       (personality ? `${personality.label}：${personality.note}` : ''),
     nickname: draft.nickname,
     year: draft.year,
-    status:
-      STATUS_OPTIONS.find((item) => item.id === draft.statusId)?.label || '',
+    status: draft.statusId === 'other'
+      ? draft.statusCustom
+      : STATUS_OPTIONS.find((item) => item.id === draft.statusId)?.label || '',
     place: draft.place,
     direction: draft.direction,
     reflection: draft.reflection,

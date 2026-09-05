@@ -20,13 +20,13 @@ export function useAvatarSuggestions(
   const forcedAttempt = useRef(0);
 
   useEffect(() => {
-    if (!enabled) {
+    const forced = attempt !== forcedAttempt.current;
+    if (!enabled && !forced) {
       setLoading(false);
       setError('');
       return;
     }
     const key = JSON.stringify(latestAnswers.current);
-    const forced = attempt !== forcedAttempt.current;
     if (!forced && completedKey.current === key) return;
     forcedAttempt.current = attempt;
     const controller = new AbortController();

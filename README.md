@@ -1,4 +1,4 @@
-# 亦实校友宇宙
+# 亦中校友宇宙
 
 北京亦庄实验中学校友网站 MVP：Vite + React + TypeScript + Tailwind 前端，搭配独立 Node.js 头像后端。校友墙仍为虚构演示数据，创建档案的头像已接入真实 AI 推荐和 Emoji Kitchen。
 
@@ -28,7 +28,7 @@ pnpm preview       # 预览 dist/；API 需要另行启动
 ## 项目结构
 
 ```text
-src/
+frontend/
   app.tsx                 页面路由与共享草稿状态
   pages/                  校友墙、个人主页
   features/
@@ -37,9 +37,9 @@ src/
   components/             通用 UI 与学校页头
   lib/                    校友演示数据、通用工具
   styles/                 全局样式
-server/                   Node API、OpenRouter、Emoji Kitchen 与图片缓存
+backend/                  Node API、OpenRouter、Emoji Kitchen 与图片缓存
 shared/                   前后端共用的头像协议与选择规则
-scripts/                  本地开发启动脚本
+dev.mjs                   本地开发启动脚本
 ```
 
 ## 头像流程
@@ -61,7 +61,7 @@ AI 只返回最多 8 个有序推荐 emoji 与简短理由，不决定哪个 emo
 | `GET /api/avatar/images/<emoji 码点>_<emoji 码点>.png` | 从本站读取或下载组合图片                                     |
 | `GET /api/health`                                      | 进程健康检查，不调用外部服务                                 |
 
-`server/openrouter.ts` 管理中文提示词和严格 JSON 输出；`shared/avatar.ts` 管理请求结构、手动选择与合并规则。API 不把上游错误正文、密钥或用户回答写入日志。
+`backend/openrouter.ts` 管理中文提示词和严格 JSON 输出；`shared/avatar.ts` 管理请求结构、手动选择与合并规则。API 不把上游错误正文、密钥或用户回答写入日志。
 
 图片仅允许兼容表生成的 `www.gstatic.com` 地址，拒绝任意 URL、重定向、非 PNG 和超过 1 MiB 的资源。`emoji-mixer@1.3.1` 数据存在镜像条目，部分只有另一方向才有真实图片，因此按记录尝试双向及旧版本（最多 6 个地址、总超时 15 秒），不假设第一个地址一定可访问。
 
@@ -71,9 +71,9 @@ AI 只返回最多 8 个有序推荐 emoji 与简短理由，不决定哪个 emo
 
 ## 部署
 
-前端 `pnpm build` 后由 Nginx / Caddy 提供 `dist/`；`/api/` 必须代理至常驻后端。仅上传静态文件不能提供 AI 推荐。
+前端 `pnpm build` 后由 Nginx 提供 `dist/`；`/api/` 必须代理至常驻后端。仅上传静态文件不能提供 AI 推荐。
 
-生产环境不需要 Docker：在主机上安装 Node.js 20.19+ 或 22.12+、pnpm 9，构建前端并直接运行后端。用 systemd、Supervisor 或其他进程管理器保持 API 常驻；Caddy/Nginx 将 `/api/` 反代到后端端口。
+生产环境不需要 Docker：在主机上安装 Node.js 20.19+ 或 22.12+、pnpm 9，构建前端并直接运行后端。用 systemd、Supervisor 或其他进程管理器保持 API 常驻；Nginx 将 `/api/` 反代到后端端口。
 
 ```bash
 pnpm install --frozen-lockfile

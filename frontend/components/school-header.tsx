@@ -22,7 +22,7 @@ export function SchoolHeader({ onHome, right }: SchoolHeaderProps) {
           />
           <span className="min-w-0 border-l border-black/10 pl-2.5">
             <span className="block truncate text-sm font-black tracking-tight sm:text-base">
-              亦实校友宇宙
+              亦中校友宇宙
             </span>
             <span className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
               Alumni beta

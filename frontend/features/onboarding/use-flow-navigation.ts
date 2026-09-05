@@ -42,7 +42,6 @@ export function useFlowNavigation() {
       flowPath(nextStep),
     );
     setLocation({ step: nextStep });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return { ...location, navigateFlow };
