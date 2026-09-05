@@ -1,7 +1,7 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 
-import AlumniApp from '@/components/alumni-app';
+import AlumniApp from '@/app';
 import '@/styles/globals.css';
 
 const root = document.getElementById('root');

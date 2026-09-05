@@ -1,7 +1,0 @@
-**
-!package.json
-!pnpm-lock.yaml
-!shared/
-!shared/**
-!server/
-!server/**

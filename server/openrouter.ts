@@ -1,16 +1,9 @@
 import { listsSchema, type SuggestionRequest } from '../shared/avatar.ts';
 import { buildSuggestions, supported } from './kitchen.ts';
 
-export class ApiError extends Error {
-  constructor(
-    public status: number,
-    message: string,
-  ) {
-    super(message);
-  }
-}
+import { ApiError } from './errors.ts';
 
-export const avatarPrompt = `你为校友网站设计有趣、友善、有辨识度的双 emoji 头像。
+const avatarPrompt = `你为校友网站设计有趣、友善、有辨识度的双 emoji 头像。
 用户每完成一阶段，你根据截至本阶段的回答更新两个候选列表：subjects（主体）与 traits（特征）。每个列表必须包含 5 个不重复的单个 emoji，按推荐优先级排列，每项附一句简短中文理由。
 主体优先选择有辨识度的角色、动物；用户喜欢猎奇时，也可选食物、物件、自然现象或抽象意象。特征表达性格、经历、情绪、爱好或有趣反差。避免把职业、地点或毕业年份当作人格定论，不推断敏感身份，不嘲讽用户。
 style=gentle 偏亲切，playful 偏俏皮反差，wild 允许大胆怪趣，但依然应能从用户回答解释。

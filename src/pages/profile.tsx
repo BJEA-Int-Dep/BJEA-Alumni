@@ -25,7 +25,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { SchoolHeader } from '@/components/school-header';
-import { EmojiAvatar } from '@/components/emoji-avatar';
+import { EmojiAvatar } from '@/features/avatar/emoji-avatar';
 import { TONE_CLASSES, type AlumniProfile } from '@/lib/alumni-data';
 
 type VisibilityField = 'year' | 'place' | 'direction' | 'reflection' | 'advice';
@@ -50,10 +50,6 @@ interface ProfileViewProps {
   onBack: () => void;
   onHome: () => void;
   onCreate: () => void;
-}
-
-function track(event: string, detail?: Record<string, string>) {
-  console.info('[mock analytics]', event, detail ?? {});
 }
 
 function PrivacyBadge({ isPublic }: { isPublic: boolean }) {
@@ -114,7 +110,6 @@ export function ProfileView({
   };
 
   const saveVisibility = () => {
-    track('visibility_saved');
     setVisibilityOpen(false);
   };
 
@@ -170,7 +165,6 @@ export function ProfileView({
               </Button>
               <Button
                 onClick={() => {
-                  track('share_profile_clicked');
                   setShareOpen(true);
                 }}
                 className="h-10 flex-1 rounded-xl bg-[#24282c] px-3 font-black text-white hover:bg-black sm:flex-none"
@@ -431,7 +425,6 @@ export function ProfileView({
               setShareMessage(
                 'Mock 完成：正式版将在这里保存图片或调起系统分享。',
               );
-              track('mock_share_action_clicked');
             }}
             className="h-11 w-full rounded-xl bg-[#24282c] font-black text-white hover:bg-black"
           >

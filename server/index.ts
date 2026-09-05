@@ -7,7 +7,8 @@ import { createHash } from 'node:crypto';
 import { loadEnvFile } from 'node:process';
 import { pathToFileURL } from 'node:url';
 import { suggestionRequestSchema, type Suggestions } from '../shared/avatar.ts';
-import { ApiError, suggest } from './openrouter.ts';
+import { suggest } from './openrouter.ts';
+import { ApiError } from './errors.ts';
 import { decodeEmoji, imageBytes } from './images.ts';
 
 try {

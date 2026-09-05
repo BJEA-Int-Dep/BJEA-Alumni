@@ -4,7 +4,7 @@ import {
   PERSONALITIES,
   REFLECTION_OPTIONS,
   STATUS_OPTIONS,
-} from '../src/lib/alumni-data';
+} from '../src/features/onboarding/options';
 import type { SuggestionRequest } from '../shared/avatar';
 
 const entries = (...emojis: string[]) =>
@@ -106,6 +106,7 @@ for (const mobile of [false, true]) {
     expect(new Set(requests.map((request) => request.stage))).toEqual(
       new Set([1, 2, 3]),
     );
+    expect(requests).toHaveLength(3);
     expect(requests[0].answers.style).toBe('wild');
     expect(
       requests.find((request) => request.stage === 1)!.answers.advice,
@@ -185,4 +186,53 @@ test('image failure falls back visibly without losing the selected pair', async 
   await expect(
     page.getByRole('button', { name: '继续下一阶段' }),
   ).toBeEnabled();
+});
+
+test('public status collects location and direction before the second checkpoint', async ({
+  page,
+}) => {
+  const requests: SuggestionRequest[] = [];
+  await page.route('**/api/avatar/images/**', (route) =>
+    route.fulfill({ contentType: 'image/png', body: png }),
+  );
+  await page.route('**/api/avatar/suggestions', (route) => {
+    const input = route.request().postDataJSON() as SuggestionRequest;
+    requests.push(input);
+    return route.fulfill({
+      json: buildSuggestions(
+        {
+          subjects: entries('🐱', '🐶', '🦊'),
+          traits: entries('🔥', '🌟', '🙃'),
+        },
+        input.selection,
+      ),
+    });
+  });
+  await firstStage(page);
+  await page.getByRole('button', { name: '继续下一阶段' }).click();
+  await page.getByRole('button', { name: '2024', exact: true }).click();
+  await page.getByRole('button', { name: /还在大学/ }).click();
+  await page
+    .getByRole('button', { name: '北京的一所大学', exact: true })
+    .click();
+  await page.getByRole('button', { name: '下一题', exact: true }).click();
+  await page.getByRole('button', { name: /计算机 \/ 工程/ }).click();
+  await expect(
+    page.getByRole('button', { name: '继续下一阶段' }),
+  ).toBeEnabled();
+  expect(requests).toHaveLength(2);
+  expect(requests[1].answers).toMatchObject({
+    year: '2024',
+    status: '还在大学',
+    place: '北京的一所大学',
+    direction: '计算机 / 工程',
+  });
+  await page.goBack();
+  await expect(
+    page.getByRole('heading', { name: '现在主要在做什么方向？' }),
+  ).toBeVisible();
+  await page.goBack();
+  await expect(page.getByPlaceholder('或者自己写一句…')).toHaveValue(
+    '北京的一所大学',
+  );
 });

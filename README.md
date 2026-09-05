@@ -29,6 +29,24 @@ pnpm preview       # 预览 dist/；API 需要另行启动
 
 可选真实端到端检查：启动开发服务后执行 `node scripts/smoke-avatar.mjs`。这会向配置的付费模型发送一组虚构回答，校验图片加载、确认浏览器不直连提供商，并将截图写入忽略的 `test-results/`；普通测试不会产生模型费用。
 
+## 项目结构
+
+```text
+src/
+  app.tsx                 页面路由与共享草稿状态
+  pages/                  校友墙、个人主页
+  features/
+    onboarding/           问题选项、草稿转换、流程导航与预览
+    avatar/               头像选择、图片展示与推荐请求
+  components/             通用 UI 与学校页头
+  lib/                    校友演示数据、通用工具
+  styles/                 全局样式
+server/                   Node API、OpenRouter、Emoji Kitchen 与图片缓存
+shared/                   前后端共用的头像协议与选择规则
+tests/                    单元、API 与浏览器回归测试
+scripts/                  开发启动与可选真实服务检查
+```
+
 ## 头像流程
 
 1. 第一阶段结束：用性格、昵称、形象描述和脑洞偏好生成主体、特征两个列表，每栏 3–5 个有效候选。
@@ -59,21 +77,17 @@ AI 只返回两个有序列表与简短理由；程序用 `emoji-mixer` 本地�
 
 前端 `pnpm build` 后由 Nginx / Caddy 提供 `dist/`；`/api/` 必须代理至常驻后端。仅上传静态文件不能提供 AI 推荐。
 
-本机部署位于相邻 `personal_website`：Compose 中 `alumni-avatar` 服务构建本仓库 Dockerfile，读取本仓库 `.env`，通过 host 网络只监听 `127.0.0.1:8788`，用 `alumni-emoji-cache` 命名卷保存图片。`bjeaalumni.org` 的 `/api/` 转发至该端口，不与开发端口 8787 冲突，也不更改个人网站 API。
+生产环境不需要 Docker：在主机上安装 Node.js 20.19+ 或 22.12+、pnpm 9，构建前端并直接运行后端。用 systemd、Supervisor 或其他进程管理器保持 API 常驻；Caddy/Nginx 将 `/api/` 反代到后端端口。
 
 ```bash
-# 在本仓库构建前端
+pnpm install --frozen-lockfile
 pnpm build
-# 在相邻 personal_website 目录更新后端
-docker compose up -d --build --no-deps alumni-avatar
-# 修改 Nginx 后先检查，再平滑重载
-docker exec web-nginx nginx -t
-docker exec web-nginx nginx -s reload
+API_HOST=127.0.0.1 API_PORT=8788 pnpm start:api
 ```
 
-其他服务器可参考 `Caddyfile.example`，以 `API_PORT=8788 pnpm start:api` 运行后端，并用服务管理器保持常驻。Docker 构建上下文采用白名单，**不将 `.env` 打入镜像**，密钥仅在运行时注入。`.env`、图片缓存、测试截图均被 Git 忽略。不要把密钥放入任何 `VITE_` 变量。
+图片缓存默认写入 `.cache/emoji/`，可通过 `EMOJI_CACHE_DIR` 放到独立的持久化目录。`.env`、图片缓存、测试截图均被 Git 忽略；密钥只放在运行时环境变量中，不要放入任何 `VITE_` 变量。`Caddyfile.example` 可直接作为反代配置参考。
 
-本机内核目前不支持 Docker 内存配额，因此 Compose 的 `mem_limit` 不生效；Node 仍设有 256 MiB V8 堆上限，但它不等于整个进程的内存上限。
+如果仍使用相邻 `personal_website` 的 Compose 部署，需要把其中的 `alumni-avatar` 改为主机上的 systemd 服务，并移除该 Compose 服务对本仓库 Dockerfile 的引用。
 
 创建中的草稿仍只在页面状态中，刷新会丢失；完成卡片可从当前浏览器历史条目恢复，但不代表保存到了服务器，也不能跨设备分享。登录、档案数据库、真正的公开分享仍未实现。
 

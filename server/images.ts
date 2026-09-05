@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { ApiError } from './openrouter.ts';
+import { ApiError } from './errors.ts';
 import { upstreamImages } from './kitchen.ts';
 
 const pending = new Map<string, Promise<Buffer>>();

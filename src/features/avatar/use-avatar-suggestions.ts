@@ -1,57 +1,25 @@
+import { useEffect, useRef, useState } from 'react';
 import {
-  useEffect,
-  useRef,
-  useState,
-  type Dispatch,
-  type SetStateAction,
-} from 'react';
-import {
-  emptyAvatar,
   mergeSuggestions,
   type AvatarAnswers,
   type AvatarStage,
+  type AvatarState,
   type Suggestions,
-} from '../../shared/avatar';
-import type { DraftProfile } from '@/components/onboarding-flow';
-import { PERSONALITIES, STATUS_OPTIONS } from '@/lib/alumni-data';
-
-function answersFor(draft: DraftProfile, stage: AvatarStage): AvatarAnswers {
-  const personality = PERSONALITIES.find(
-    (item) => item.id === draft.personalityId,
-  );
-  return {
-    personality: personality ? `${personality.label}：${personality.note}` : '',
-    nickname: draft.nickname,
-    description: draft.avatarDescription,
-    style: draft.avatarStyle || 'playful',
-    ...(stage >= 2
-      ? {
-          year: draft.year,
-          status:
-            STATUS_OPTIONS.find((item) => item.id === draft.statusId)?.label ||
-            '',
-          place: draft.place,
-          direction: draft.direction,
-        }
-      : {}),
-    ...(stage >= 3
-      ? { reflection: draft.reflection, advice: draft.advice }
-      : {}),
-  };
-}
+} from '../../../shared/avatar';
 
 export function useAvatarSuggestions(
-  draft: DraftProfile,
-  update: Dispatch<SetStateAction<DraftProfile>>,
+  answers: AvatarAnswers,
+  avatar: AvatarState,
+  update: (change: (current: AvatarState) => AvatarState) => void,
   stage: AvatarStage | null,
 ) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
   const seenAttempt = useRef(0);
-  const latest = useRef(draft);
-  latest.current = draft;
-  const key = stage ? JSON.stringify(answersFor(draft, stage)) : '';
+  const latest = useRef(avatar);
+  latest.current = avatar;
+  const key = stage ? JSON.stringify(answers) : '';
 
   useEffect(() => {
     const forced = attempt !== seenAttempt.current;
@@ -61,7 +29,7 @@ export function useAvatarSuggestions(
       setError('');
       return;
     }
-    if (!forced && latest.current.avatar?.stages[stage] === key) {
+    if (!forced && latest.current.stages[stage] === key) {
       setLoading(false);
       setError('');
       return;
@@ -80,7 +48,7 @@ export function useAvatarSuggestions(
           body: JSON.stringify({
             stage,
             answers: JSON.parse(key),
-            selection: (latest.current.avatar ?? emptyAvatar()).selection,
+            selection: latest.current.selection,
             refresh: attempt,
           }),
         });
@@ -91,13 +59,10 @@ export function useAvatarSuggestions(
           throw new Error(result.error || '头像推荐暂时不可用，请重试。');
         if (cancelled) return;
         update((current) => {
-          const avatar = mergeSuggestions(
-            current.avatar ?? emptyAvatar(),
-            result,
-          );
+          const avatar = mergeSuggestions(current, result);
           return {
-            ...current,
-            avatar: { ...avatar, stages: { ...avatar.stages, [stage]: key } },
+            ...avatar,
+            stages: { ...avatar.stages, [stage]: key },
           };
         });
       } catch (cause) {

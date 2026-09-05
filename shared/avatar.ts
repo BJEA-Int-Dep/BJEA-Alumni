@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
-export const stageSchema = z.union([z.literal(1), z.literal(2), z.literal(3)]);
+const stageSchema = z.union([z.literal(1), z.literal(2), z.literal(3)]);
 export type AvatarStage = z.infer<typeof stageSchema>;
-export const candidateSchema = z.object({
+const candidateSchema = z.object({
   emoji: z.string().min(1).max(32),
   reason: z.string().min(1).max(100),
 });
@@ -12,14 +12,14 @@ export const listsSchema = z.object({
 });
 export type Candidate = z.infer<typeof candidateSchema>;
 export type EmojiLists = z.infer<typeof listsSchema>;
-export const selectionSchema = z.object({
+const selectionSchema = z.object({
   subject: z.string().max(32),
   trait: z.string().max(32),
   subjectLocked: z.boolean(),
   traitLocked: z.boolean(),
 });
 export type Selection = z.infer<typeof selectionSchema>;
-export const answersSchema = z.object({
+const answersSchema = z.object({
   personality: z.string().max(180),
   nickname: z.string().max(32),
   description: z.string().max(500),

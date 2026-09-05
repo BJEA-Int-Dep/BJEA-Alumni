@@ -3,9 +3,9 @@ import {
   chooseEmoji,
   type AvatarState,
   type EmojiPair,
-} from '../../shared/avatar';
+} from '../../../shared/avatar';
 import { Button } from '@/components/ui/button';
-import { EmojiAvatar } from '@/components/emoji-avatar';
+import { EmojiAvatar } from '@/features/avatar/emoji-avatar';
 
 interface Props {
   avatar: AvatarState;
