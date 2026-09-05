@@ -25,17 +25,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { SchoolHeader } from '@/components/school-header';
-import {
-  TONE_CLASSES,
-  type AlumniProfile,
-} from '@/lib/alumni-data';
+import { EmojiAvatar } from '@/components/emoji-avatar';
+import { TONE_CLASSES, type AlumniProfile } from '@/lib/alumni-data';
 
-type VisibilityField =
-  | 'year'
-  | 'place'
-  | 'direction'
-  | 'reflection'
-  | 'advice';
+type VisibilityField = 'year' | 'place' | 'direction' | 'reflection' | 'advice';
 
 type VisibilityState = Record<VisibilityField, boolean>;
 
@@ -67,9 +60,7 @@ function PrivacyBadge({ isPublic }: { isPublic: boolean }) {
   return (
     <span
       className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-black ${
-        isPublic
-          ? 'bg-[#e8f3f8] text-[#17648e]'
-          : 'bg-[#eceae5] text-[#666b6e]'
+        isPublic ? 'bg-[#e8f3f8] text-[#17648e]' : 'bg-[#eceae5] text-[#666b6e]'
       }`}
     >
       {isPublic ? <Eye className="size-3" /> : <Lock className="size-3" />}
@@ -205,12 +196,12 @@ export function ProfileView({
                   亦实校友角色卡
                 </span>
               </div>
-              <span
-                className="self-center select-none text-[8rem] drop-shadow-[0_20px_18px_rgba(0,0,0,0.2)] sm:text-[11rem]"
-                aria-label={`${profile.nickname} 的角色头像`}
-              >
-                {profile.emoji}
-              </span>
+              <EmojiAvatar
+                imageUrl={profile.avatarImageUrl}
+                emoji={profile.emoji}
+                label={`${profile.nickname} 的角色头像${profile.avatarLabel ? `：${profile.avatarLabel}` : ''}`}
+                className="size-44 self-center select-none text-[8rem] drop-shadow-[0_20px_18px_rgba(0,0,0,0.2)] sm:size-56 sm:text-[11rem]"
+              />
               <div className="max-w-2xl rounded-[22px] bg-white/88 p-4 shadow-sm backdrop-blur-md sm:p-5">
                 <h1 className="text-3xl font-black tracking-tight text-[#23272b] sm:text-4xl">
                   {profile.nickname}
@@ -391,9 +382,12 @@ export function ProfileView({
               <span className="absolute left-4 top-4 rounded-full bg-white/88 px-2.5 py-1 text-[10px] font-black text-black/65">
                 CLASS OF &apos;{profile.year.slice(-2)}
               </span>
-              <span className="select-none text-[8rem] drop-shadow-[0_16px_16px_rgba(0,0,0,0.2)]">
-                {profile.emoji}
-              </span>
+              <EmojiAvatar
+                imageUrl={profile.avatarImageUrl}
+                emoji={profile.emoji}
+                label={profile.avatarLabel || '分享卡头像'}
+                className="size-44 select-none text-[8rem] drop-shadow-[0_16px_16px_rgba(0,0,0,0.2)]"
+              />
             </div>
             <div className="p-6">
               <div className="flex items-center justify-between gap-3">
@@ -434,7 +428,9 @@ export function ProfileView({
           ) : null}
           <Button
             onClick={() => {
-              setShareMessage('Mock 完成：正式版将在这里保存图片或调起系统分享。');
+              setShareMessage(
+                'Mock 完成：正式版将在这里保存图片或调起系统分享。',
+              );
               track('mock_share_action_clicked');
             }}
             className="h-11 w-full rounded-xl bg-[#24282c] font-black text-white hover:bg-black"

@@ -1,11 +1,26 @@
 import tailwindcss from '@tailwindcss/postcss';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 
 const sourceRoot = fileURLToPath(new URL('./src', import.meta.url));
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
+  server: {
+    proxy: {
+      '/api': {
+        target: `http://127.0.0.1:${process.env.API_PORT || loadEnv(mode, process.cwd(), 'API_').API_PORT || '8787'}`,
+        configure(proxy) {
+          proxy.on('proxyReq', (proxyReq, req) => {
+            proxyReq.setHeader(
+              'X-Real-IP',
+              req.socket.remoteAddress || 'unknown',
+            );
+          });
+        },
+      },
+    },
+  },
   resolve: {
     alias: {
       '@': sourceRoot,
@@ -21,4 +36,4 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: false,
   },
-});
+}));

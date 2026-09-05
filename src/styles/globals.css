@@ -61,7 +61,7 @@
 
 :root {
   --font-sans: 'Arial Rounded MT Bold', 'PingFang SC', 'Microsoft YaHei', Arial,
-    sans-serif;
+    sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji';
   --font-mono: ui-monospace, SFMono-Regular, Consolas, monospace;
   --background: #fffaf1;
   --foreground: #23272b;

@@ -10,6 +10,7 @@ import {
   OnboardingFlow,
   createDefaultDraft,
   draftToProfile,
+  type DraftProfile,
 } from '@/components/onboarding-flow';
 import { ProfileView } from '@/components/profile-view';
 import { SchoolHeader } from '@/components/school-header';
@@ -28,6 +29,42 @@ import {
 } from '@/lib/alumni-data';
 
 type View = 'home' | 'detail' | 'create' | 'complete';
+
+interface AppHistoryState {
+  alumniApp?: true;
+  draft?: DraftProfile;
+}
+
+interface AppRoute {
+  view: View;
+  profile?: AlumniProfile;
+  draft?: DraftProfile;
+}
+
+function currentPath() {
+  return window.location.pathname.replace(/\/+$/, '') || '/';
+}
+
+function readRoute(): AppRoute {
+  const path = currentPath();
+
+  if (path === '/create') return { view: 'create' };
+
+  if (path === '/profile/my-profile') {
+    const state = window.history.state as AppHistoryState | null;
+    return state?.draft
+      ? { view: 'complete', draft: state.draft }
+      : { view: 'home' };
+  }
+
+  if (path.startsWith('/alumni/')) {
+    const profileId = decodeURIComponent(path.slice('/alumni/'.length));
+    const profile = ALUMNI.find((person) => person.id === profileId);
+    if (profile) return { view: 'detail', profile };
+  }
+
+  return { view: 'home' };
+}
 
 function track(event: string, detail?: Record<string, string>) {
   console.info('[mock analytics]', event, detail ?? {});
@@ -164,21 +201,56 @@ function HomeView({ onSelectProfile, onRequestCreate }: HomeViewProps) {
 }
 
 export default function AlumniApp() {
-  const [view, setView] = useState<View>('home');
+  const [initialRoute] = useState(readRoute);
+  const [view, setView] = useState<View>(initialRoute.view);
   const [selectedProfile, setSelectedProfile] = useState<AlumniProfile>(
-    ALUMNI[0],
+    initialRoute.profile ?? ALUMNI[0],
   );
   const [identityOpen, setIdentityOpen] = useState(false);
-  const [draft, setDraft] = useState(createDefaultDraft);
+  const [draft, setDraft] = useState(
+    initialRoute.draft ?? createDefaultDraft,
+  );
 
-  const goTo = (nextView: View) => {
+  useEffect(() => {
+    const initialPathIsValid =
+      initialRoute.view !== 'home' || currentPath() === '/';
+
+    window.history.replaceState(
+      {
+        ...(window.history.state as AppHistoryState | null),
+        alumniApp: true,
+      },
+      '',
+      initialPathIsValid ? window.location.href : '/',
+    );
+
+    const handlePopState = () => {
+      const route = readRoute();
+      setIdentityOpen(false);
+      setView(route.view);
+      if (route.profile) setSelectedProfile(route.profile);
+      if (route.draft) setDraft(route.draft);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [initialRoute]);
+
+  const navigate = (
+    path: string,
+    nextView: View,
+    state: AppHistoryState = {},
+  ) => {
+    window.history.pushState({ alumniApp: true, ...state }, '', path);
     setView(nextView);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const goHome = () => navigate('/', 'home');
+
   const requestCreate = () => {
     track('create_profile_clicked');
-    setView('home');
+    if (currentPath() !== '/') navigate('/', 'home');
     setIdentityOpen(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -187,13 +259,13 @@ export default function AlumniApp() {
     track('identity_selected', { identity: 'alumni' });
     setDraft(createDefaultDraft());
     setIdentityOpen(false);
-    goTo('create');
+    navigate('/create', 'create');
   };
 
   const openProfile = (profile: AlumniProfile) => {
     track('profile_card_clicked', { nickname: profile.nickname });
     setSelectedProfile(profile);
-    goTo('detail');
+    navigate(`/alumni/${encodeURIComponent(profile.id)}`, 'detail');
   };
 
   if (view === 'create') {
@@ -201,9 +273,9 @@ export default function AlumniApp() {
       <OnboardingFlow
         draft={draft}
         onDraftChange={setDraft}
-        onExit={() => goTo('home')}
+        onExit={goHome}
         onComplete={() => {
-          goTo('complete');
+          navigate('/profile/my-profile', 'complete', { draft });
           window.setTimeout(() => track('final_profile_viewed'), 0);
         }}
       />
@@ -214,8 +286,8 @@ export default function AlumniApp() {
     return (
       <ProfileView
         profile={selectedProfile}
-        onBack={() => goTo('home')}
-        onHome={() => goTo('home')}
+        onBack={goHome}
+        onHome={goHome}
         onCreate={requestCreate}
       />
     );
@@ -226,8 +298,8 @@ export default function AlumniApp() {
       <ProfileView
         profile={draftToProfile(draft)}
         isOwner
-        onBack={() => goTo('home')}
-        onHome={() => goTo('home')}
+        onBack={goHome}
+        onHome={goHome}
         onCreate={requestCreate}
       />
     );

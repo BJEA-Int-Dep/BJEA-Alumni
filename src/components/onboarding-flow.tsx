@@ -1,20 +1,22 @@
-import { useState, type Dispatch, type SetStateAction } from 'react';
-import {
-  ArrowLeft,
-  ArrowRight,
-  Check,
-  Loader2,
-  RotateCw,
-  Sparkles,
-} from 'lucide-react';
+import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
+import { ArrowLeft, ArrowRight, Check, Sparkles } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Textarea } from '@/components/ui/textarea';
+import { AvatarPicker } from '@/components/avatar-picker';
+import { EmojiAvatar } from '@/components/emoji-avatar';
+import { useAvatarSuggestions } from '@/hooks/use-avatar-suggestions';
+import {
+  emptyAvatar,
+  selectedPair,
+  type AvatarAnswers,
+  type AvatarStage,
+  type AvatarState,
+} from '../../shared/avatar';
 import {
   ADVICE_SUGGESTIONS,
-  AVATAR_SETS,
   DIRECTION_OPTIONS,
   PERSONALITIES,
   PLACE_SUGGESTIONS,
@@ -33,6 +35,8 @@ export interface DraftProfile {
   tone: Tone;
   summary: string;
   avatarDescription: string;
+  avatarStyle?: AvatarAnswers['style'];
+  avatar?: AvatarState;
   year: string;
   statusId: StatusId | '';
   place: string;
@@ -49,6 +53,8 @@ export function createDefaultDraft(): DraftProfile {
     tone: 'graphite',
     summary: '回答几个问题，这张角色卡会慢慢长出来。',
     avatarDescription: '一个还在加载中的神秘校友角色，轻松插画风',
+    avatarStyle: 'playful',
+    avatar: emptyAvatar(),
     year: '',
     statusId: '',
     place: '',
@@ -67,7 +73,11 @@ export function draftToProfile(draft: DraftProfile): AlumniProfile {
     id: 'my-profile',
     nickname: draft.nickname.trim() || '神秘校友',
     year: draft.year || '20??',
-    emoji: draft.emoji,
+    emoji: draft.avatar?.selection.subject || draft.emoji,
+    avatarImageUrl: selectedPair(draft.avatar)?.imageUrl,
+    avatarLabel: draft.avatar?.selection.subject
+      ? `${draft.avatar.selection.subject} + ${draft.avatar.selection.trait}`
+      : undefined,
     summary: draft.summary,
     field:
       draft.statusId === 'private'
@@ -76,8 +86,7 @@ export function draftToProfile(draft: DraftProfile): AlumniProfile {
     status,
     place: draft.place || '暂时没有公开',
     direction: draft.direction || '仍在探索',
-    reflection:
-      draft.reflection || '这部分还没想好，允许以后再补充。',
+    reflection: draft.reflection || '这部分还没想好，允许以后再补充。',
     advice: draft.advice.trim() || '别急着给自己定型。',
     tone: draft.tone,
   };
@@ -95,6 +104,38 @@ interface ChoiceProps {
   label: string;
   note?: string;
   onClick: () => void;
+}
+
+const TOTAL_STEPS = 9;
+
+interface FlowLocation {
+  step: number;
+  checkpoint: AvatarStage | null;
+}
+
+function readFlowLocation(): FlowLocation {
+  const params = new URLSearchParams(window.location.search);
+  const requestedStep = Number(params.get('step'));
+  const step = Number.isInteger(requestedStep)
+    ? Math.min(TOTAL_STEPS - 1, Math.max(0, requestedStep - 1))
+    : 0;
+  const requestedCheckpoint = Number(params.get('checkpoint'));
+  const checkpoint =
+    requestedCheckpoint === 1 ||
+    requestedCheckpoint === 2 ||
+    requestedCheckpoint === 3
+      ? requestedCheckpoint
+      : null;
+
+  return { step, checkpoint };
+}
+
+function flowPath(step: number, checkpoint: AvatarStage | null = null) {
+  if (step === 0 && checkpoint === null) return '/create';
+
+  const params = new URLSearchParams({ step: String(step + 1) });
+  if (checkpoint) params.set('checkpoint', String(checkpoint));
+  return `/create?${params.toString()}`;
 }
 
 function track(event: string, detail?: Record<string, string>) {
@@ -149,12 +190,12 @@ function LiveProfilePreview({ draft }: { draft: DraftProfile }) {
           <span className="absolute left-4 top-4 rounded-full bg-white/85 px-2.5 py-1 text-[10px] font-black text-black/65 shadow-sm">
             {draft.year ? `CLASS OF '${draft.year.slice(-2)}` : 'CLASS OF ··'}
           </span>
-          <span
-            className="relative select-none text-7xl drop-shadow-[0_14px_14px_rgba(0,0,0,0.18)] sm:text-8xl lg:text-[8rem]"
-            aria-label="当前角色头像"
-          >
-            {draft.emoji}
-          </span>
+          <EmojiAvatar
+            imageUrl={selectedPair(draft.avatar)?.imageUrl}
+            emoji={draft.avatar?.selection.subject || draft.emoji}
+            label="当前角色头像"
+            className="size-32 select-none text-7xl drop-shadow-[0_14px_14px_rgba(0,0,0,0.18)] sm:size-36 sm:text-8xl lg:size-48 lg:text-[8rem]"
+          />
         </div>
         <div className="p-4 sm:p-5 lg:p-6">
           <p className="text-xs font-black uppercase tracking-[0.14em] text-[#e15036]">
@@ -184,7 +225,9 @@ function LiveProfilePreview({ draft }: { draft: DraftProfile }) {
         </div>
       </div>
       <p className="mt-3 text-center text-[11px] font-medium text-muted-foreground">
-        每一个回答，都会悄悄改变右边这张卡
+        {draft.avatar?.selection.subject
+          ? `${draft.avatar.selection.subject} + ${draft.avatar.selection.trait} · 你的专属配方`
+          : '每完成一个阶段，角色就多一点你的样子'}
       </p>
     </aside>
   );
@@ -196,12 +239,51 @@ export function OnboardingFlow({
   onExit,
   onComplete,
 }: OnboardingFlowProps) {
-  const [step, setStep] = useState(0);
-  const [checkpoint, setCheckpoint] = useState<1 | 2 | null>(null);
-  const [avatarLoading, setAvatarLoading] = useState(false);
-  const totalSteps = 9;
+  const [initialLocation] = useState(readFlowLocation);
+  const [step, setStep] = useState(initialLocation.step);
+  const [checkpoint, setCheckpoint] = useState<AvatarStage | null>(
+    initialLocation.checkpoint,
+  );
+  const {
+    loading: avatarLoading,
+    error: avatarError,
+    refresh,
+  } = useAvatarSuggestions(draft, onDraftChange, checkpoint);
+  const avatar = draft.avatar ?? emptyAvatar();
+  const changeAvatar = (change: (current: AvatarState) => AvatarState) => {
+    onDraftChange((current) => ({
+      ...current,
+      avatar: change(current.avatar ?? emptyAvatar()),
+    }));
+  };
   const stage = step <= 2 ? 1 : step <= 6 ? 2 : 3;
-  const progress = Math.round(((step + 1) / totalSteps) * 100);
+  const progress = Math.round(((step + 1) / TOTAL_STEPS) * 100);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      if (window.location.pathname !== '/create') return;
+      const location = readFlowLocation();
+      setStep(location.step);
+      setCheckpoint(location.checkpoint);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const navigateFlow = (
+    nextStep: number,
+    nextCheckpoint: AvatarStage | null = null,
+  ) => {
+    window.history.pushState(
+      { ...window.history.state, alumniApp: true },
+      '',
+      flowPath(nextStep, nextCheckpoint),
+    );
+    setStep(nextStep);
+    setCheckpoint(nextCheckpoint);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const patchDraft = (patch: Partial<DraftProfile>) => {
     onDraftChange((current) => ({ ...current, ...patch }));
@@ -218,7 +300,7 @@ export function OnboardingFlow({
       avatarDescription: option.description,
     });
     track('question_completed', { question: 'personality', answer: id });
-    setStep(1);
+    navigateFlow(1);
   };
 
   const chooseStatus = (statusId: StatusId) => {
@@ -232,70 +314,40 @@ export function OnboardingFlow({
       patchDraft({
         place: '暂时没有公开',
         direction: '仍在探索',
-        avatarDescription: `${draft.avatarDescription}，保留一点神秘感`,
       });
       track('stage_2_completed', { path: 'privacy_skip' });
-      setCheckpoint(2);
+      navigateFlow(4, 2);
     } else {
-      setStep(5);
+      navigateFlow(5);
     }
     if (option) track('status_branch_selected', { branch: option.label });
   };
 
   const chooseDirection = (direction: string) => {
-    const baseDescription =
-      PERSONALITIES.find((item) => item.id === draft.personalityId)
-        ?.description ?? draft.avatarDescription;
-    patchDraft({
-      direction,
-      avatarDescription: `${baseDescription}，现在走在「${direction}」这条人生支线上`,
-    });
+    patchDraft({ direction });
     track('question_completed', { question: 'direction', answer: direction });
     track('stage_2_completed');
-    setCheckpoint(2);
-  };
-
-  const regenerateAvatar = () => {
-    if (avatarLoading) return;
-    setAvatarLoading(true);
-    track('mock_avatar_generation_started');
-    window.setTimeout(() => {
-      onDraftChange((current) => {
-        const set = AVATAR_SETS[current.personalityId] ?? ['✨', '🛸', '🌈'];
-        const currentIndex = Math.max(0, set.indexOf(current.emoji));
-        return { ...current, emoji: set[(currentIndex + 1) % set.length] };
-      });
-      setAvatarLoading(false);
-      track('mock_avatar_generation_completed');
-    }, 900);
+    navigateFlow(6, 2);
   };
 
   const continueCheckpoint = () => {
-    if (checkpoint === 1) setStep(3);
-    if (checkpoint === 2) setStep(7);
-    setCheckpoint(null);
+    if (checkpoint === 1) navigateFlow(3);
+    if (checkpoint === 2) navigateFlow(7);
+    if (checkpoint === 3) onComplete();
   };
 
   const goBack = () => {
-    if (checkpoint) {
-      setCheckpoint(null);
-      return;
-    }
-    if (step === 0) {
+    if (step === 0 && !checkpoint) {
       onExit();
       return;
     }
-    if (step === 7 && draft.statusId === 'private') {
-      setStep(4);
-      return;
-    }
-    setStep((current) => Math.max(0, current - 1));
+    window.history.back();
   };
 
   const completeProfile = () => {
     track('question_completed', { question: 'advice' });
-    track('profile_completed');
-    onComplete();
+    track('stage_3_completed');
+    navigateFlow(8, 3);
   };
 
   const currentStatus = draft.statusId || 'university';
@@ -317,10 +369,15 @@ export function OnboardingFlow({
           <div className="min-w-0 flex-1">
             <div className="mb-1.5 flex items-center justify-between gap-3">
               <span className="text-xs font-black">
-                STAGE {stage} · {stage === 1 ? '你是哪种人' : stage === 2 ? '后来去哪了' : '你的故事'}
+                STAGE {stage} ·{' '}
+                {stage === 1
+                  ? '你是哪种人'
+                  : stage === 2
+                    ? '后来去哪了'
+                    : '你的故事'}
               </span>
               <span className="text-xs font-bold tabular-nums text-muted-foreground">
-                {step + 1} / {totalSteps}
+                {step + 1} / {TOTAL_STEPS}
               </span>
             </div>
             <Progress
@@ -340,55 +397,47 @@ export function OnboardingFlow({
           >
             {checkpoint ? (
               <div className="flex min-h-[490px] flex-col items-center justify-center text-center">
-                <div className="relative mb-5 grid size-24 place-items-center rounded-[28px] bg-gradient-to-br from-[#ef593c] via-[#f6a624] to-[#64a94e] text-5xl shadow-[0_18px_45px_rgba(239,89,60,0.25)]">
-                  <span>{draft.emoji}</span>
-                  <span className="absolute -right-2 -top-2 grid size-8 place-items-center rounded-full bg-white shadow-md">
-                    <Sparkles className="size-4 text-[#ef593c]" />
-                  </span>
-                </div>
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-[#df5035]">
                   Stage {checkpoint} clear
                 </p>
                 <h1 className="mt-2 text-balance text-3xl font-black tracking-tight sm:text-4xl">
                   {checkpoint === 1
-                    ? '你的角色卡长出第一层皮肤了'
-                    : '人生支线已写进角色设定'}
+                    ? '你的角色，有了第一点灵感'
+                    : checkpoint === 2
+                      ? '把人生支线，揉进头像里'
+                      : '最后一笔，写进你的故事'}
                 </h1>
                 <p className="mt-3 max-w-md text-sm font-medium leading-6 text-muted-foreground">
-                  系统已经更新“你的形象描述”。是否生成新头像由你决定，不会打断回答节奏。
+                  AI 提供灵感，你来决定长什么样。已保留的 emoji
+                  不会被新推荐覆盖。
                 </p>
-                <div className="mt-6 w-full max-w-md rounded-2xl border border-black/[0.07] bg-white p-4 text-left">
-                  <p className="mb-1 text-[11px] font-black uppercase tracking-[0.14em] text-muted-foreground">
-                    更新后的形象描述
-                  </p>
-                  <p className="text-sm font-medium leading-6">
-                    {draft.avatarDescription}
-                  </p>
+                <div className="mt-6 w-full">
+                  <AvatarPicker
+                    avatar={avatar}
+                    onChange={changeAvatar}
+                    loading={avatarLoading}
+                    error={avatarError}
+                    onRefresh={refresh}
+                  />
                 </div>
                 <div className="mt-6 flex w-full max-w-md flex-col gap-3 sm:flex-row">
-                  <Button
-                    variant="outline"
-                    onClick={regenerateAvatar}
-                    disabled={avatarLoading}
-                    className="h-12 flex-1 rounded-2xl border-black/10 bg-white font-black"
-                  >
-                    {avatarLoading ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                      <RotateCw className="size-4" />
-                    )}
-                    {avatarLoading ? '角色生成中…' : '生成升级版'}
-                  </Button>
                   <Button
                     onClick={continueCheckpoint}
                     disabled={avatarLoading}
                     className="h-12 flex-1 rounded-2xl bg-[#24282c] font-black text-white hover:bg-black"
                   >
-                    继续下一阶段 <ArrowRight className="size-4" />
+                    {avatarLoading
+                      ? '正在寻找你的配方…'
+                      : checkpoint === 3
+                        ? '使用这张角色卡'
+                        : '继续下一阶段'}{' '}
+                    <ArrowRight className="size-4" />
                   </Button>
                 </div>
                 <p className="mt-3 text-[11px] font-medium text-muted-foreground">
-                  MVP 中使用预设角色模拟 AI 生成
+                  {avatarError
+                    ? '推荐暂时不可用也没关系，可以保留当前头像继续。'
+                    : '灰色的 emoji 暂时无法与已保留的另一枚组合。'}
                 </p>
               </div>
             ) : null}
@@ -431,7 +480,9 @@ export function OnboardingFlow({
                 </p>
                 <Input
                   value={draft.nickname}
-                  onChange={(event) => patchDraft({ nickname: event.target.value })}
+                  onChange={(event) =>
+                    patchDraft({ nickname: event.target.value })
+                  }
                   placeholder="例如：Matcha、小岛、北纬 39°"
                   maxLength={16}
                   className="mt-8 h-14 rounded-2xl border-black/10 bg-white px-4 text-base font-bold shadow-sm md:text-base"
@@ -451,7 +502,7 @@ export function OnboardingFlow({
                 <Button
                   onClick={() => {
                     track('question_completed', { question: 'nickname' });
-                    setStep(2);
+                    navigateFlow(2);
                   }}
                   disabled={!draft.nickname.trim()}
                   className="mt-8 h-12 w-full rounded-2xl bg-[#ee573c] text-base font-black text-white hover:bg-[#d9462f] sm:w-auto sm:px-7"
@@ -467,20 +518,16 @@ export function OnboardingFlow({
                   第三题 · 初始角色
                 </p>
                 <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">
-                  看看系统怎么理解你
+                  想让角色是什么样子？
                 </h1>
                 <p className="mt-2 text-sm font-medium text-muted-foreground">
-                  这不是 Prompt，你可以像改自我介绍一样直接修改。
+                  动物、食物、奇怪的小东西都可以。不必像本人，像你的气质就好。
                 </p>
                 <div className="mt-7 grid gap-4 sm:grid-cols-[120px_1fr] sm:items-stretch">
                   <div
                     className={`grid min-h-28 place-items-center rounded-2xl bg-gradient-to-br text-6xl shadow-inner ${TONE_CLASSES[draft.tone]}`}
                   >
-                    {avatarLoading ? (
-                      <Loader2 className="size-8 animate-spin text-white" />
-                    ) : (
-                      draft.emoji
-                    )}
+                    {draft.avatar?.selection.subject || draft.emoji}
                   </div>
                   <div>
                     <label
@@ -492,6 +539,7 @@ export function OnboardingFlow({
                     <Textarea
                       id="avatar-description"
                       value={draft.avatarDescription}
+                      maxLength={500}
                       onChange={(event) =>
                         patchDraft({ avatarDescription: event.target.value })
                       }
@@ -499,42 +547,60 @@ export function OnboardingFlow({
                     />
                   </div>
                 </div>
-                <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-                  <Button
-                    variant="outline"
-                    onClick={regenerateAvatar}
-                    disabled={avatarLoading}
-                    className="h-12 rounded-2xl border-black/10 bg-white px-5 font-black"
-                  >
-                    {avatarLoading ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                      <RotateCw className="size-4" />
-                    )}
-                    {avatarLoading ? '模拟生成中…' : '重新生成'}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      const base =
-                        PERSONALITIES.find(
-                          (item) => item.id === draft.personalityId,
-                        )?.description ?? draft.avatarDescription;
-                      patchDraft({
-                        avatarDescription: `${base}，再加一点松弛和出其不意的感觉`,
-                      });
-                      track('mock_ai_rewrite_clicked');
-                    }}
-                    className="h-12 rounded-2xl border-black/10 bg-white px-5 font-black"
-                  >
-                    <Sparkles className="size-4" /> AI 帮我改一下
-                  </Button>
+                <fieldset className="mt-6">
+                  <legend className="text-xs font-black text-muted-foreground">
+                    脑洞开到多大？
+                  </legend>
+                  <div className="mt-3 grid grid-cols-3 gap-2">
+                    {(
+                      [
+                        {
+                          value: 'gentle',
+                          label: '🌱 温和一点',
+                          note: '亲切、好认',
+                        },
+                        {
+                          value: 'playful',
+                          label: '🪄 有点反差',
+                          note: '熟悉中带点意外',
+                        },
+                        {
+                          value: 'wild',
+                          label: '🛸 尽管猎奇',
+                          note: '让 AI 自由发挥',
+                        },
+                      ] as const
+                    ).map((style) => (
+                      <button
+                        key={style.value}
+                        type="button"
+                        aria-pressed={
+                          (draft.avatarStyle || 'playful') === style.value
+                        }
+                        onClick={() => patchDraft({ avatarStyle: style.value })}
+                        className={`rounded-2xl border p-3 text-left transition ${(draft.avatarStyle || 'playful') === style.value ? 'border-[#ee573c] bg-[#fff0e7]' : 'border-black/10 bg-white hover:border-[#ee573c]/40'}`}
+                      >
+                        <span className="block text-xs font-black sm:text-sm">
+                          {style.label}
+                        </span>
+                        <span className="mt-1 block text-[11px] text-muted-foreground">
+                          {style.note}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </fieldset>
+                <p className="mt-5 text-xs leading-5 text-muted-foreground">
+                  每阶段结束时，已填写的回答会经本站服务器发送给 AI
+                  服务（OpenRouter），用于推荐 emoji；请勿填写敏感信息。
+                </p>
+                <div className="mt-5 flex flex-col gap-3 sm:flex-row">
                   <Button
                     onClick={() => {
                       track('stage_1_completed');
-                      setCheckpoint(1);
+                      navigateFlow(2, 1);
                     }}
-                    disabled={avatarLoading || !draft.avatarDescription.trim()}
+                    disabled={!draft.avatarDescription.trim()}
                     className="h-12 rounded-2xl bg-[#24282c] px-6 font-black text-white hover:bg-black"
                   >
                     完成第一阶段 <Check className="size-4" />
@@ -555,25 +621,32 @@ export function OnboardingFlow({
                   这是帮助学弟学妹理解时间线，不是年龄竞猜。
                 </p>
                 <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  {['2025', '2024', '2023', '2022', '2021', '2020', '2019', '2018'].map(
-                    (year) => (
-                      <button
-                        key={year}
-                        type="button"
-                        onClick={() => {
-                          patchDraft({ year });
-                          track('question_completed', {
-                            question: 'graduation_year',
-                            answer: year,
-                          });
-                          setStep(4);
-                        }}
-                        className="min-h-16 rounded-2xl border border-black/[0.08] bg-white text-lg font-black shadow-sm transition hover:-translate-y-0.5 hover:border-[#1680bd]/40 hover:bg-[#eaf5fa] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#1680bd]/20"
-                      >
-                        {year}
-                      </button>
-                    ),
-                  )}
+                  {[
+                    '2025',
+                    '2024',
+                    '2023',
+                    '2022',
+                    '2021',
+                    '2020',
+                    '2019',
+                    '2018',
+                  ].map((year) => (
+                    <button
+                      key={year}
+                      type="button"
+                      onClick={() => {
+                        patchDraft({ year });
+                        track('question_completed', {
+                          question: 'graduation_year',
+                          answer: year,
+                        });
+                        navigateFlow(4);
+                      }}
+                      className="min-h-16 rounded-2xl border border-black/[0.08] bg-white text-lg font-black shadow-sm transition hover:-translate-y-0.5 hover:border-[#1680bd]/40 hover:bg-[#eaf5fa] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#1680bd]/20"
+                    >
+                      {year}
+                    </button>
+                  ))}
                 </div>
               </div>
             ) : null}
@@ -606,7 +679,11 @@ export function OnboardingFlow({
             {!checkpoint && step === 5 ? (
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-[#1478ad]">
-                  第六题 · {STATUS_OPTIONS.find((item) => item.id === draft.statusId)?.label}
+                  第六题 ·{' '}
+                  {
+                    STATUS_OPTIONS.find((item) => item.id === draft.statusId)
+                      ?.label
+                  }
                 </p>
                 <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">
                   后来去了哪里？
@@ -632,7 +709,9 @@ export function OnboardingFlow({
                 </div>
                 <Input
                   value={draft.place}
-                  onChange={(event) => patchDraft({ place: event.target.value })}
+                  onChange={(event) =>
+                    patchDraft({ place: event.target.value })
+                  }
                   placeholder="或者自己写一句…"
                   maxLength={36}
                   className="mt-5 h-14 rounded-2xl border-black/10 bg-white px-4 text-base font-bold md:text-base"
@@ -640,7 +719,7 @@ export function OnboardingFlow({
                 <Button
                   onClick={() => {
                     track('question_completed', { question: 'place' });
-                    setStep(6);
+                    navigateFlow(6);
                   }}
                   disabled={!draft.place.trim()}
                   className="mt-7 h-12 w-full rounded-2xl bg-[#1680bd] text-base font-black text-white hover:bg-[#126a9d] sm:w-auto sm:px-7"
@@ -696,7 +775,7 @@ export function OnboardingFlow({
                         track('question_completed', {
                           question: 'reflection',
                         });
-                        setStep(8);
+                        navigateFlow(8);
                       }}
                     />
                   ))}
@@ -729,7 +808,9 @@ export function OnboardingFlow({
                 </div>
                 <Textarea
                   value={draft.advice}
-                  onChange={(event) => patchDraft({ advice: event.target.value })}
+                  onChange={(event) =>
+                    patchDraft({ advice: event.target.value })
+                  }
                   placeholder="例如：别急着找到标准答案，先去试试看。"
                   maxLength={80}
                   className="mt-5 min-h-32 resize-none rounded-2xl border-black/10 bg-white p-4 text-base leading-7 md:text-base"
@@ -751,6 +832,21 @@ export function OnboardingFlow({
 
         <div className="order-1 lg:order-2">
           <LiveProfilePreview draft={draft} />
+          {!checkpoint && avatar.subjects.length > 0 && (
+            <details className="mt-5 rounded-2xl border border-black/[0.07] bg-[#fffaf1] p-4">
+              <summary className="cursor-pointer text-sm font-black">
+                调整我的 emoji 配方
+              </summary>
+              <div className="mt-4">
+                <AvatarPicker
+                  avatar={avatar}
+                  onChange={changeAvatar}
+                  loading={false}
+                  error=""
+                />
+              </div>
+            </details>
+          )}
         </div>
       </div>
     </main>

@@ -16,6 +16,8 @@ export type StatusId =
   | 'private';
 
 export interface AlumniProfile {
+  avatarImageUrl?: string;
+  avatarLabel?: string;
   id: string;
   nickname: string;
   year: string;
@@ -274,10 +276,3 @@ export const ADVICE_SUGGESTIONS = [
   '多做一点真实的小尝试。',
   '睡够真的比熬夜有用。',
 ];
-
-export const AVATAR_SETS: Record<string, string[]> = {
-  observer: ['🦉', '🦊', '🐈'],
-  vibe: ['🐣', '🐸', '🦜'],
-  sprint: ['🐯', '🐿️', '🐙'],
-  npc: ['🦦', '🦥', '🦄'],
-};
