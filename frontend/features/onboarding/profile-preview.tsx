@@ -12,7 +12,7 @@ import {
 import { AvatarPicker } from '@/features/avatar/avatar-picker';
 import { EmojiAvatar } from '@/features/avatar/emoji-avatar';
 import { TONE_CLASSES } from '@/lib/alumni-data';
-import { selectedPair } from '../../../shared/avatar';
+import { emptyAvatar, selectedPair } from '../../../shared/avatar';
 import type { DraftProfile } from './draft';
 import { STATUS_OPTIONS } from './options';
 
@@ -37,6 +37,7 @@ export function ProfilePreview({
   const [emojiOpen, setEmojiOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const pair = selectedPair(draft.avatar);
+  const avatar = draft.avatar ?? emptyAvatar();
 
   useEffect(() => {
     if (!open) return;
@@ -145,7 +146,7 @@ export function ProfilePreview({
             <DialogDescription>挑两枚 emoji，组合会实时显示在角色卡上。</DialogDescription>
           </DialogHeader>
           <AvatarPicker
-            avatar={draft.avatar}
+            avatar={avatar}
             onChange={changeAvatar}
             loading={loading}
             error={error}
