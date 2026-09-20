@@ -18,7 +18,9 @@ interface OnboardingFlowProps {
   draft: DraftProfile;
   onDraftChange: Dispatch<SetStateAction<DraftProfile>>;
   onExit: () => void;
-  onComplete: () => void;
+  onComplete: () => void | Promise<void>;
+  completing?: boolean;
+  completionError?: string;
 }
 
 const requiredFields: Array<[keyof DraftProfile, string]> = [
@@ -36,6 +38,8 @@ export function OnboardingFlow({
   onDraftChange,
   onExit,
   onComplete,
+  completing = false,
+  completionError = '',
 }: OnboardingFlowProps) {
   const { step, navigateFlow } = useFlowNavigation();
   const [validationError, setValidationError] = useState('');
@@ -134,16 +138,17 @@ export function OnboardingFlow({
               patchDraft={patchDraft}
               navigateFlow={navigateFlow}
               onComplete={complete}
+              completing={completing}
               aiLoading={suggestions.loading}
               aiError={suggestions.error}
               onAiRefresh={suggestions.refresh}
             />
-            {validationError ? (
+            {validationError || completionError ? (
               <p
                 role="alert"
                 className="mt-6 rounded-xl bg-[#fff0dc] p-3 text-xs font-bold leading-5 text-[#885421]"
               >
-                {validationError}
+                {validationError || completionError}
               </p>
             ) : null}
           </div>

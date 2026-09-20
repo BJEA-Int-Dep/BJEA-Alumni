@@ -6,7 +6,28 @@ import {
 import { createHash } from 'node:crypto';
 import { loadEnvFile } from 'node:process';
 import { pathToFileURL } from 'node:url';
+import { z } from 'zod';
+import {
+  emailSchema,
+  nicknameSchema,
+  passwordSchema,
+  profileDraftSchema,
+  verificationCodeSchema,
+} from '../shared/account.ts';
 import { suggestionRequestSchema, type Suggestions } from '../shared/avatar.ts';
+import {
+  createSession,
+  currentUser,
+  deleteSession,
+  emailKey,
+  hashPassword,
+  nicknameKey,
+  passwordMatches,
+  publicUser,
+  requireUser,
+  verificationCodeMatches,
+} from './auth.ts';
+import { openDatabase, type AppDatabase } from './database.ts';
 import { suggest } from './openrouter.ts';
 import { ApiError } from './errors.ts';
 import { decodeEmoji, imageBytes } from './images.ts';
@@ -18,9 +39,51 @@ try {
   if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
 }
 
+const registerRequestSchema = z
+  .object({
+    nickname: nicknameSchema,
+    email: emailSchema,
+    password: passwordSchema,
+    code: verificationCodeSchema,
+  })
+  .strict();
+const loginRequestSchema = z
+  .object({ nickname: nicknameSchema, password: passwordSchema })
+  .strict();
+const emailCodeRequestSchema = z
+  .object({ email: emailSchema, code: verificationCodeSchema })
+  .strict();
+const resetPasswordRequestSchema = emailCodeRequestSchema
+  .extend({ password: passwordSchema })
+  .strict();
+const sendCodeRequestSchema = z
+  .object({
+    email: emailSchema,
+    purpose: z.enum(['register', 'recover-nickname', 'reset-password']),
+  })
+  .strict();
+
+interface UserRow {
+  id: number;
+  nickname: string;
+  email: string;
+  password_hash: string;
+  has_profile: number;
+}
+
+interface ProfileRow {
+  user_id: number;
+  draft_json: string;
+}
+
 export function createApiServer(
-  providers: { suggest?: typeof suggest; image?: typeof imageBytes } = {},
+  providers: {
+    suggest?: typeof suggest;
+    image?: typeof imageBytes;
+    database?: AppDatabase;
+  } = {},
 ) {
+  const database = providers.database ?? openDatabase();
   const requests = new Map<string, { count: number; expires: number }>();
   const cache = new Map<
     string,
@@ -55,6 +118,33 @@ export function createApiServer(
     }
   }
 
+  function sameOrigin(req: IncomingMessage) {
+    if (
+      req.headers.origin &&
+      new URL(req.headers.origin).host !== req.headers.host
+    )
+      throw new ApiError(403, '请从本站提交请求。');
+  }
+
+  function parsedBody<T>(schema: z.ZodType<T>, value: unknown): T {
+    const result = schema.safeParse(value);
+    if (!result.success)
+      throw new ApiError(
+        400,
+        result.error.issues[0]?.message || '填写内容格式不正确。',
+      );
+    return result.data;
+  }
+
+  function savedDraft(userId: number) {
+    const row = database
+      .prepare('SELECT draft_json FROM profiles WHERE user_id = ?')
+      .get(userId) as { draft_json: string } | undefined;
+    if (!row) return null;
+    const parsed = profileDraftSchema.safeParse(JSON.parse(row.draft_json));
+    return parsed.success ? parsed.data : null;
+  }
+
   function clientIp(req: IncomingMessage) {
     const remote = req.socket.remoteAddress || 'unknown';
     const local = ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(remote);
@@ -81,6 +171,199 @@ export function createApiServer(
       const url = new URL(req.url || '/', 'http://localhost');
       if (req.method === 'GET' && url.pathname === '/api/health')
         return json(res, 200, { ok: true });
+      if (
+        req.method === 'GET' &&
+        url.pathname === '/api/auth/nickname-availability'
+      ) {
+        limit(`availability:${clientIp(req)}`, 300);
+        const result = nicknameSchema.safeParse(
+          url.searchParams.get('nickname') || '',
+        );
+        if (!result.success)
+          return json(res, 200, {
+            valid: false,
+            available: false,
+            error: result.error.issues[0]?.message,
+          });
+        const occupied = database
+          .prepare('SELECT 1 FROM users WHERE nickname_key = ?')
+          .get(nicknameKey(result.data));
+        return json(res, 200, {
+          valid: true,
+          available: !occupied,
+        });
+      }
+      if (req.method === 'GET' && url.pathname === '/api/auth/me') {
+        const user = currentUser(database, req);
+        return json(
+          res,
+          200,
+          user
+            ? { user: publicUser(user), draft: savedDraft(user.id) }
+            : { user: null, draft: null },
+        );
+      }
+      if (req.method === 'POST' && url.pathname === '/api/auth/send-code') {
+        sameOrigin(req);
+        limit(`send-code:${clientIp(req)}`, 30);
+        parsedBody(sendCodeRequestSchema, await readBody(req));
+        return json(res, 200, { ok: true });
+      }
+      if (req.method === 'POST' && url.pathname === '/api/auth/register') {
+        sameOrigin(req);
+        limit(`register:${clientIp(req)}`, 20);
+        const input = parsedBody(registerRequestSchema, await readBody(req));
+        if (!verificationCodeMatches(input.code))
+          throw new ApiError(400, '验证码不正确。');
+        const normalizedNickname = nicknameKey(input.nickname);
+        const normalizedEmail = emailKey(input.email);
+        if (
+          database
+            .prepare('SELECT 1 FROM users WHERE nickname_key = ?')
+            .get(normalizedNickname)
+        )
+          throw new ApiError(409, '这个昵称已经被占用了。');
+        if (
+          database
+            .prepare('SELECT 1 FROM users WHERE email_key = ?')
+            .get(normalizedEmail)
+        )
+          throw new ApiError(409, '这个邮箱已经注册过了。');
+        const passwordHash = await hashPassword(input.password);
+        let inserted;
+        try {
+          inserted = database
+            .prepare(
+              `INSERT INTO users
+                (nickname, nickname_key, email, email_key, password_hash, created_at)
+              VALUES (?, ?, ?, ?, ?, ?)`,
+            )
+            .run(
+              input.nickname.trim(),
+              normalizedNickname,
+              input.email,
+              normalizedEmail,
+              passwordHash,
+              Date.now(),
+            );
+        } catch {
+          throw new ApiError(409, '昵称或邮箱已经注册过了。');
+        }
+        const user = {
+          id: Number(inserted.lastInsertRowid),
+          nickname: input.nickname.trim(),
+          email: input.email,
+          password_hash: passwordHash,
+          has_profile: 0,
+        } satisfies UserRow;
+        createSession(database, res, user.id);
+        return json(res, 201, { user: publicUser(user), draft: null });
+      }
+      if (req.method === 'POST' && url.pathname === '/api/auth/login') {
+        sameOrigin(req);
+        limit(`login:${clientIp(req)}`, 60);
+        const input = parsedBody(loginRequestSchema, await readBody(req));
+        const user = database
+          .prepare(
+            `SELECT users.id, users.nickname, users.email, users.password_hash,
+              EXISTS(SELECT 1 FROM profiles WHERE profiles.user_id = users.id) AS has_profile
+            FROM users WHERE nickname_key = ?`,
+          )
+          .get(nicknameKey(input.nickname)) as UserRow | undefined;
+        if (!user || !(await passwordMatches(input.password, user.password_hash)))
+          throw new ApiError(401, '昵称或密码不正确。');
+        createSession(database, res, user.id);
+        return json(res, 200, {
+          user: publicUser(user),
+          draft: savedDraft(user.id),
+        });
+      }
+      if (req.method === 'POST' && url.pathname === '/api/auth/logout') {
+        sameOrigin(req);
+        deleteSession(database, req, res);
+        return json(res, 200, { ok: true });
+      }
+      if (
+        req.method === 'POST' &&
+        url.pathname === '/api/auth/recover-nickname'
+      ) {
+        sameOrigin(req);
+        limit(`recover:${clientIp(req)}`, 30);
+        const input = parsedBody(emailCodeRequestSchema, await readBody(req));
+        if (!verificationCodeMatches(input.code))
+          throw new ApiError(400, '验证码不正确。');
+        const user = database
+          .prepare('SELECT nickname FROM users WHERE email_key = ?')
+          .get(emailKey(input.email)) as { nickname: string } | undefined;
+        if (!user) throw new ApiError(404, '没有找到这个邮箱对应的账号。');
+        return json(res, 200, { nickname: user.nickname });
+      }
+      if (
+        req.method === 'POST' &&
+        url.pathname === '/api/auth/reset-password'
+      ) {
+        sameOrigin(req);
+        limit(`reset:${clientIp(req)}`, 30);
+        const input = parsedBody(
+          resetPasswordRequestSchema,
+          await readBody(req),
+        );
+        if (!verificationCodeMatches(input.code))
+          throw new ApiError(400, '验证码不正确。');
+        const user = database
+          .prepare('SELECT id FROM users WHERE email_key = ?')
+          .get(emailKey(input.email)) as { id: number } | undefined;
+        if (!user) throw new ApiError(404, '没有找到这个邮箱对应的账号。');
+        const passwordHash = await hashPassword(input.password);
+        database.transaction(() => {
+          database
+            .prepare('UPDATE users SET password_hash = ? WHERE id = ?')
+            .run(passwordHash, user.id);
+          database.prepare('DELETE FROM sessions WHERE user_id = ?').run(user.id);
+        })();
+        return json(res, 200, { ok: true });
+      }
+      if (req.method === 'GET' && url.pathname === '/api/profiles') {
+        const rows = database
+          .prepare('SELECT user_id, draft_json FROM profiles ORDER BY updated_at DESC')
+          .all() as ProfileRow[];
+        const profiles = rows.flatMap((row) => {
+          try {
+            const draft = profileDraftSchema.parse(JSON.parse(row.draft_json));
+            return [{ id: `member-${row.user_id}`, draft }];
+          } catch {
+            return [];
+          }
+        });
+        return json(res, 200, { profiles });
+      }
+      if (req.method === 'PUT' && url.pathname === '/api/profile/me') {
+        sameOrigin(req);
+        limit(`save-profile:${clientIp(req)}`, 120);
+        const user = requireUser(database, req);
+        const draft = parsedBody(profileDraftSchema, await readBody(req));
+        if (
+          !draft.nickname.trim() ||
+          !draft.year.trim() ||
+          !draft.place.trim() ||
+          !draft.direction.trim() ||
+          !draft.reflection.trim()
+        )
+          throw new ApiError(400, '请先完成角色卡的必填内容。');
+        const now = Date.now();
+        database
+          .prepare(
+            `INSERT INTO profiles (user_id, draft_json, created_at, updated_at)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(user_id) DO UPDATE SET
+              draft_json = excluded.draft_json,
+              updated_at = excluded.updated_at`,
+          )
+          .run(user.id, JSON.stringify(draft), now, now);
+        return json(res, 200, {
+          profile: { id: `member-${user.id}`, draft },
+        });
+      }
       if (req.method === 'GET' && url.pathname === '/api/avatar/emojis') {
         const withEmoji = url.searchParams.get('with');
         if (!withEmoji) return json(res, 200, { emojis: supported });
@@ -128,11 +411,7 @@ export function createApiServer(
       }
       if (req.method !== 'POST' || url.pathname !== '/api/avatar/suggestions')
         throw new ApiError(404, '接口不存在。');
-      if (
-        req.headers.origin &&
-        new URL(req.headers.origin).host !== req.headers.host
-      )
-        throw new ApiError(403, '请从本站提交请求。');
+      sameOrigin(req);
       const parsed = suggestionRequestSchema.safeParse(await readBody(req));
       if (!parsed.success)
         throw new ApiError(400, '填写内容格式不正确或过长。');

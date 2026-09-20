@@ -1,14 +1,12 @@
 import { useEffect, useState } from 'react';
 import { ArrowRight, GraduationCap } from 'lucide-react';
+import type {
+  AccountUser,
+  AuthPayload,
+  PersistedProfileDraft,
+  PublicProfilePayload,
+} from '../shared/account';
 
-import { OnboardingFlow } from '@/features/onboarding/onboarding-flow';
-import {
-  createDefaultDraft,
-  draftToProfile,
-  type DraftProfile,
-} from '@/features/onboarding/draft';
-import { HomeView } from '@/pages/home';
-import { ProfileView } from '@/pages/profile';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -17,19 +15,32 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { AuthDialog, type AuthMode } from '@/features/auth/auth-dialog';
+import { OnboardingFlow } from '@/features/onboarding/onboarding-flow';
+import {
+  createDefaultDraft,
+  draftToProfile,
+  type DraftProfile,
+} from '@/features/onboarding/draft';
+import { apiRequest } from '@/lib/api';
 import { ALUMNI, type AlumniProfile } from '@/lib/alumni-data';
+import { HomeView } from '@/pages/home';
+import { ProfileView } from '@/pages/profile';
 
 type View = 'home' | 'detail' | 'create' | 'complete';
 
 interface AppHistoryState {
   alumniApp?: true;
-  draft?: DraftProfile;
 }
 
 interface AppRoute {
   view: View;
-  profile?: AlumniProfile;
-  draft?: DraftProfile;
+  profileId?: string;
+}
+
+interface MePayload {
+  user: AccountUser | null;
+  draft: PersistedProfileDraft | null;
 }
 
 function currentPath() {
@@ -38,38 +49,97 @@ function currentPath() {
 
 function readRoute(): AppRoute {
   const path = currentPath();
-
   if (path === '/create') return { view: 'create' };
-
-  if (path === '/profile/my-profile') {
-    const state = window.history.state as AppHistoryState | null;
-    return state?.draft
-      ? { view: 'complete', draft: state.draft }
-      : { view: 'home' };
-  }
-
-  if (path.startsWith('/alumni/')) {
-    const profileId = decodeURIComponent(path.slice('/alumni/'.length));
-    const profile = ALUMNI.find((person) => person.id === profileId);
-    if (profile) return { view: 'detail', profile };
-  }
-
+  if (path === '/profile/my-profile') return { view: 'complete' };
+  if (path.startsWith('/alumni/'))
+    return {
+      view: 'detail',
+      profileId: decodeURIComponent(path.slice('/alumni/'.length)),
+    };
   return { view: 'home' };
+}
+
+function profileFromPayload(payload: PublicProfilePayload): AlumniProfile {
+  return { ...draftToProfile(payload.draft), id: payload.id };
 }
 
 export default function AlumniApp() {
   const [initialRoute] = useState(readRoute);
   const [view, setView] = useState<View>(initialRoute.view);
   const [selectedProfile, setSelectedProfile] = useState<AlumniProfile>(
-    initialRoute.profile ?? ALUMNI[0],
+    ALUMNI.find((profile) => profile.id === initialRoute.profileId) ?? ALUMNI[0],
   );
+  const [profiles, setProfiles] = useState<AlumniProfile[]>(ALUMNI);
+  const [authReady, setAuthReady] = useState(false);
+  const [authUser, setAuthUser] = useState<AccountUser | null>(null);
+  const [savedDraft, setSavedDraft] = useState<DraftProfile | null>(null);
   const [identityOpen, setIdentityOpen] = useState(false);
-  const [draft, setDraft] = useState(initialRoute.draft ?? createDefaultDraft);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<AuthMode>('login');
+  const [saveAfterAuth, setSaveAfterAuth] = useState(false);
+  const [draft, setDraft] = useState<DraftProfile>(createDefaultDraft);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileSaveError, setProfileSaveError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.all([
+      apiRequest<MePayload>('/api/auth/me'),
+      apiRequest<{ profiles: PublicProfilePayload[] }>('/api/profiles'),
+    ])
+      .then(([me, publicProfiles]) => {
+        if (cancelled) return;
+        const memberProfiles = publicProfiles.profiles.map(profileFromPayload);
+        const allProfiles = [
+          ...memberProfiles,
+          ...ALUMNI.filter(
+            (demo) => !memberProfiles.some((member) => member.id === demo.id),
+          ),
+        ];
+        setProfiles(allProfiles);
+        setAuthUser(me.user);
+        if (me.draft) {
+          setSavedDraft(me.draft);
+          setDraft(me.draft);
+        }
+
+        const route = readRoute();
+        if (route.view === 'detail') {
+          const profile = allProfiles.find((item) => item.id === route.profileId);
+          if (profile) setSelectedProfile(profile);
+          else {
+            window.history.replaceState({ alumniApp: true }, '', '/');
+            setView('home');
+          }
+        }
+        if (route.view === 'complete' && !me.user) {
+          window.history.replaceState({ alumniApp: true }, '', '/');
+          setView('home');
+          setAuthOpen(true);
+        } else if (route.view === 'complete' && !me.draft) {
+          window.history.replaceState({ alumniApp: true }, '', '/create');
+          setView('create');
+        }
+      })
+      .catch(() => {
+        if (cancelled) return;
+        const route = readRoute();
+        if (route.view === 'complete') {
+          window.history.replaceState({ alumniApp: true }, '', '/');
+          setView('home');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setAuthReady(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const initialPathIsValid =
       initialRoute.view !== 'home' || currentPath() === '/';
-
     window.history.replaceState(
       {
         ...(window.history.state as AppHistoryState | null),
@@ -82,58 +152,156 @@ export default function AlumniApp() {
     const handlePopState = () => {
       const route = readRoute();
       setIdentityOpen(false);
+      setAuthOpen(false);
+      if (route.view === 'complete' && !authUser) {
+        window.history.replaceState({ alumniApp: true }, '', '/');
+        setView('home');
+        return;
+      }
+      if (route.view === 'detail') {
+        const profile = profiles.find((item) => item.id === route.profileId);
+        if (!profile) {
+          setView('home');
+          return;
+        }
+        setSelectedProfile(profile);
+      }
+      if (route.view === 'complete' && savedDraft) setDraft(savedDraft);
       setView(route.view);
-      if (route.profile) setSelectedProfile(route.profile);
-      if (route.draft) setDraft(route.draft);
     };
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [initialRoute]);
+  }, [authUser, initialRoute, profiles, savedDraft]);
 
-  const navigate = (
-    path: string,
-    nextView: View,
-    state: AppHistoryState = {},
-  ) => {
-    window.history.pushState({ alumniApp: true, ...state }, '', path);
+  const navigate = (path: string, nextView: View) => {
+    window.history.pushState({ alumniApp: true }, '', path);
     setView(nextView);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const goHome = () => navigate('/', 'home');
 
+  const beginProfile = (profileDraft = savedDraft ?? createDefaultDraft()) => {
+    setDraft(profileDraft);
+    setProfileSaveError('');
+    setIdentityOpen(false);
+    navigate('/create', 'create');
+  };
+
   const requestCreate = () => {
+    if (authUser) {
+      beginProfile();
+      return;
+    }
     if (currentPath() !== '/') navigate('/', 'home');
     setIdentityOpen(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const startCreate = () => {
-    setDraft(createDefaultDraft());
+  const openAuth = (mode: AuthMode, shouldContinue = false) => {
     setIdentityOpen(false);
-    navigate('/create', 'create');
+    setAuthMode(mode);
+    setSaveAfterAuth(shouldContinue);
+    setAuthOpen(true);
+  };
+
+  const authenticated = (payload: AuthPayload) => {
+    const shouldSave = saveAfterAuth;
+    setAuthUser(payload.user);
+    setSavedDraft(payload.draft);
+    if (!shouldSave && payload.draft) setDraft(payload.draft);
+    setAuthOpen(false);
+    setSaveAfterAuth(false);
+    if (shouldSave) void saveProfile();
+  };
+
+  const logout = async () => {
+    try {
+      await apiRequest<{ ok: true }>('/api/auth/logout', { method: 'POST' });
+    } finally {
+      setAuthUser(null);
+      setSavedDraft(null);
+      setDraft(createDefaultDraft());
+      if (view === 'create' || view === 'complete') goHome();
+    }
+  };
+
+  const saveProfile = async () => {
+    setProfileSaving(true);
+    setProfileSaveError('');
+    try {
+      const result = await apiRequest<{ profile: PublicProfilePayload }>(
+        '/api/profile/me',
+        { method: 'PUT', body: JSON.stringify(draft) },
+      );
+      const profile = profileFromPayload(result.profile);
+      setProfiles((current) => [
+        profile,
+        ...current.filter((item) => item.id !== profile.id),
+      ]);
+      setSavedDraft(draft);
+      setAuthUser((current) =>
+        current ? { ...current, hasProfile: true } : current,
+      );
+      navigate('/profile/my-profile', 'complete');
+    } catch (cause) {
+      setProfileSaveError(
+        cause instanceof Error ? cause.message : '角色卡保存失败，请重试。',
+      );
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
+  const completeProfile = () => {
+    if (authUser) return saveProfile();
+    openAuth('register', true);
   };
 
   const openProfile = (profile: AlumniProfile) => {
+    if (authUser && profile.id === `member-${authUser.id}` && savedDraft) {
+      setDraft(savedDraft);
+      navigate('/profile/my-profile', 'complete');
+      return;
+    }
     setSelectedProfile(profile);
     navigate(`/alumni/${encodeURIComponent(profile.id)}`, 'detail');
   };
 
+  if (!authReady)
+    return (
+      <main className="grid min-h-screen place-items-center bg-background text-sm font-bold text-muted-foreground">
+        正在加载校友宇宙…
+      </main>
+    );
+
+  const authLayer = (
+    <AuthDialog
+      open={authOpen}
+      initialMode={authMode}
+      onOpenChange={setAuthOpen}
+      onAuthenticated={authenticated}
+    />
+  );
+
   if (view === 'create') {
     return (
-      <OnboardingFlow
-        draft={draft}
-        onDraftChange={setDraft}
-        onExit={goHome}
-        onComplete={() =>
-          navigate('/profile/my-profile', 'complete', { draft })
-        }
-      />
+      <>
+        <OnboardingFlow
+          draft={draft}
+          onDraftChange={setDraft}
+          onExit={goHome}
+          onComplete={completeProfile}
+          completing={profileSaving}
+          completionError={profileSaveError}
+        />
+        {authLayer}
+      </>
     );
   }
 
-  if (view === 'detail' || view === 'complete') {
+  if (view === 'detail' || (view === 'complete' && authUser)) {
     return (
       <ProfileView
         profile={view === 'complete' ? draftToProfile(draft) : selectedProfile}
@@ -148,7 +316,15 @@ export default function AlumniApp() {
 
   return (
     <>
-      <HomeView onSelectProfile={openProfile} onRequestCreate={requestCreate} />
+      <HomeView
+        profiles={profiles}
+        accountNickname={authUser?.nickname}
+        hasProfile={authUser?.hasProfile}
+        onSelectProfile={openProfile}
+        onRequestCreate={requestCreate}
+        onLogin={() => openAuth('login')}
+        onLogout={() => void logout()}
+      />
 
       <Dialog open={identityOpen} onOpenChange={setIdentityOpen}>
         <DialogContent className="max-w-md gap-5 rounded-[26px] bg-[#fffaf1] p-6 sm:p-7">
@@ -163,7 +339,7 @@ export default function AlumniApp() {
           <div className="grid gap-3">
             <Button
               className="h-16 justify-between rounded-2xl bg-[#ee573c] px-5 text-base font-black text-white hover:bg-[#d9462f]"
-              onClick={startCreate}
+              onClick={() => beginProfile(createDefaultDraft())}
             >
               <span className="flex items-center gap-3">
                 <GraduationCap className="size-5" /> 我是校友
@@ -180,6 +356,8 @@ export default function AlumniApp() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {authLayer}
     </>
   );
 }

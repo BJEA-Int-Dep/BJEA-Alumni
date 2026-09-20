@@ -1,22 +1,64 @@
-import { ArrowUpRight, Sparkles } from 'lucide-react';
+import { ArrowUpRight, LogIn, LogOut, Sparkles, UserRound } from 'lucide-react';
 import { SchoolHeader } from '@/components/school-header';
 import { Button } from '@/components/ui/button';
-import { ALUMNI, TONE_CLASSES, type AlumniProfile } from '@/lib/alumni-data';
+import { TONE_CLASSES, type AlumniProfile } from '@/lib/alumni-data';
 
 interface HomeViewProps {
+  profiles: AlumniProfile[];
+  accountNickname?: string;
+  hasProfile?: boolean;
   onSelectProfile: (profile: AlumniProfile) => void;
   onRequestCreate: () => void;
+  onLogin: () => void;
+  onLogout: () => void;
 }
 
-export function HomeView({ onSelectProfile, onRequestCreate }: HomeViewProps) {
+export function HomeView({
+  profiles,
+  accountNickname,
+  hasProfile = false,
+  onSelectProfile,
+  onRequestCreate,
+  onLogin,
+  onLogout,
+}: HomeViewProps) {
   return (
     <main className="min-h-screen overflow-x-hidden bg-background pb-32 text-foreground">
       <SchoolHeader
         onHome={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
         right={
-          <span className="rounded-full border border-[#ef593c]/20 bg-[#ef593c]/8 px-3 py-1.5 text-xs font-bold text-[#c63d27]">
-            内测中 · 全员虚构
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="hidden rounded-full border border-[#ef593c]/20 bg-[#ef593c]/8 px-3 py-1.5 text-xs font-bold text-[#c63d27] sm:inline-flex">
+              内测中
+            </span>
+            {accountNickname ? (
+              <>
+                <span className="hidden items-center gap-1.5 text-xs font-black sm:inline-flex">
+                  <UserRound className="size-3.5" /> {accountNickname}
+                </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={onLogout}
+                  className="rounded-xl font-black"
+                  aria-label="退出登录"
+                >
+                  <LogOut className="size-4" />
+                  <span className="hidden sm:inline">退出</span>
+                </Button>
+              </>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onLogin}
+                className="h-9 rounded-xl bg-white px-3 font-black"
+              >
+                <LogIn className="size-4" /> 登录
+              </Button>
+            )}
+          </div>
         }
       />
 
@@ -57,7 +99,7 @@ export function HomeView({ onSelectProfile, onRequestCreate }: HomeViewProps) {
         </div>
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4">
-          {ALUMNI.map((person) => (
+          {profiles.map((person) => (
             <button
               key={person.id}
               type="button"
@@ -112,9 +154,13 @@ export function HomeView({ onSelectProfile, onRequestCreate }: HomeViewProps) {
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-black/[0.06] bg-[#fffaf1]/92 px-4 pb-[calc(12px+env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl">
         <div className="mx-auto flex max-w-lg items-center gap-3">
           <div className="hidden min-w-0 flex-1 sm:block">
-            <p className="text-sm font-black">校友墙上还差一个你</p>
+            <p className="text-sm font-black">
+              {hasProfile ? '你的角色卡已经加入校友墙' : '校友墙上还差一个你'}
+            </p>
             <p className="truncate text-xs text-muted-foreground">
-              大约 3 分钟，边回答边生成角色卡
+              {hasProfile
+                ? '随时回来更新你的人生支线'
+                : '大约 3 分钟，边回答边生成角色卡'}
             </p>
           </div>
           <Button
@@ -123,7 +169,7 @@ export function HomeView({ onSelectProfile, onRequestCreate }: HomeViewProps) {
             className="h-[52px] flex-1 rounded-2xl bg-[#ee573c] px-5 text-base font-black text-white shadow-[0_8px_24px_rgba(238,87,60,0.3)] hover:bg-[#d9462f] sm:flex-none"
           >
             <Sparkles className="size-4" />
-            创建我的 Profile
+            {hasProfile ? '查看或编辑我的 Profile' : '创建我的 Profile'}
           </Button>
         </div>
       </div>

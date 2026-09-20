@@ -20,6 +20,7 @@ interface QuestionsProps {
   patchDraft: (patch: Partial<DraftProfile>) => void;
   navigateFlow: (step: number) => void;
   onComplete: () => void;
+  completing?: boolean;
   aiLoading?: boolean;
   aiError?: string;
   onAiRefresh?: () => void;
@@ -149,6 +150,7 @@ export function Questions({
   patchDraft,
   navigateFlow,
   onComplete,
+  completing = false,
   aiLoading = false,
   aiError = '',
   onAiRefresh,
@@ -541,10 +543,10 @@ export function Questions({
           />
           <Button
             onClick={onComplete}
-            disabled={!draft.nickname.trim()}
+            disabled={!draft.nickname.trim() || completing}
             className="mt-8 h-12 rounded-2xl bg-[#ee573c] px-7 font-black text-white"
           >
-            <Check className="size-4" /> 大功告成
+            <Check className="size-4" /> {completing ? '正在保存…' : '大功告成'}
           </Button>
         </div>
       );

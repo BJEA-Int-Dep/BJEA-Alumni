@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   mergeSuggestions,
+  suggestionsSchema,
   type AvatarAnswers,
   type AvatarState,
   type Suggestions,
 } from '../../../shared/avatar';
+import { ApiRequestError, readApiResponse } from '@/lib/api';
 
 export function useAvatarSuggestions(
   answers: AvatarAnswers,
@@ -36,20 +38,40 @@ export function useAvatarSuggestions(
     let cancelled = false;
     void (async () => {
       try {
-        const response = await fetch('/api/avatar/suggestions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          signal: controller.signal,
-          body: JSON.stringify({
-            answers: latestAnswers.current,
-            refresh: attempt,
-          }),
-        });
-        const result = (await response.json()) as Suggestions & {
-          error?: string;
-        };
-        if (!response.ok)
-          throw new Error(result.error || '头像推荐暂时不可用，请重试。');
+        let result: Suggestions | undefined;
+        for (let requestAttempt = 0; requestAttempt < 2; requestAttempt++) {
+          try {
+            const response = await fetch('/api/avatar/suggestions', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              signal: controller.signal,
+              body: JSON.stringify({
+                answers: latestAnswers.current,
+                refresh: attempt,
+              }),
+            });
+            const body = await readApiResponse<Suggestions>(
+              response,
+              'AI 灵感暂时不可用，请重试。',
+            );
+            const parsed = suggestionsSchema.safeParse(body);
+            if (!parsed.success)
+              throw new ApiRequestError(
+                'AI 返回的灵感不完整，请重试。',
+                response.status,
+                true,
+              );
+            result = parsed.data;
+            break;
+          } catch (cause) {
+            const canRetry =
+              !controller.signal.aborted &&
+              requestAttempt === 0 &&
+              (!(cause instanceof ApiRequestError) || cause.retryable);
+            if (!canRetry) throw cause;
+          }
+        }
+        if (!result) throw new Error('AI 灵感暂时不可用，请重试。');
         if (cancelled) return;
         completedKey.current = key;
         update((current) => mergeSuggestions(current, result));
@@ -57,10 +79,10 @@ export function useAvatarSuggestions(
         if (!cancelled)
           setError(
             controller.signal.aborted
-              ? '这次等待有点久，你可以重试或保留当前头像继续。'
+              ? '这次等待有点久，你可以重试或自己填写昵称继续。'
               : cause instanceof Error
                 ? cause.message
-                : '头像推荐暂时不可用。',
+                : 'AI 灵感暂时不可用。',
           );
       } finally {
         window.clearTimeout(timeout);
