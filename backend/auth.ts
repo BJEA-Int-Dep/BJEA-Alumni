@@ -11,10 +11,13 @@ const scryptAsync = promisify(scrypt);
 
 interface UserRow {
   id: number;
-  nickname: string;
+  real_name: string;
   email: string;
-  password_hash: string;
+  account_status?: 'active' | 'disabled';
   has_profile?: number;
+  notify_major_events: number;
+  notify_community_updates: number;
+  public_profile: number;
 }
 
 export function nicknameKey(value: string) {
@@ -110,11 +113,14 @@ export function currentUser(db: AppDatabase, req: IncomingMessage) {
   return (
     (db
       .prepare(
-        `SELECT users.id, users.nickname, users.email,
+        `SELECT users.id, users.real_name, users.email,
+          users.notify_major_events, users.notify_community_updates,
+          users.public_profile,
           EXISTS(SELECT 1 FROM profiles WHERE profiles.user_id = users.id) AS has_profile
         FROM sessions
         JOIN users ON users.id = sessions.user_id
-        WHERE sessions.token_hash = ? AND sessions.expires_at > ?`,
+        WHERE sessions.token_hash = ? AND sessions.expires_at > ?
+          AND users.account_status = 'active'`,
       )
       .get(tokenHash(token), now) as UserRow | undefined) || null
   );
@@ -129,9 +135,14 @@ export function requireUser(db: AppDatabase, req: IncomingMessage) {
 export function publicUser(row: UserRow): AccountUser {
   return {
     id: row.id,
-    nickname: row.nickname,
+    realName: row.real_name,
     email: row.email,
     hasProfile: Boolean(row.has_profile),
+    preferences: {
+      notifyMajorEvents: Boolean(row.notify_major_events),
+      notifyCommunityUpdates: Boolean(row.notify_community_updates),
+      publicProfile: Boolean(row.public_profile),
+    },
   };
 }
 

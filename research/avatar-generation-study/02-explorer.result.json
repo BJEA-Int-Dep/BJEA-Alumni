@@ -1,0 +1,46 @@
+{
+  "id": "02-explorer",
+  "completed_at": "2026-09-26T21:31:00.447Z",
+  "status": 200,
+  "headers_ms": 16442,
+  "elapsed_ms": 16843,
+  "response": {
+    "created": 1790458259,
+    "data": [
+      {
+        "b64_json": "[saved to 02-explorer.png]",
+        "media_type": "image/png"
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 304,
+      "completion_tokens": 439,
+      "total_tokens": 743,
+      "cost": 0.01469,
+      "is_byok": false,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      },
+      "cost_details": {
+        "upstream_inference_cost": 0.01469,
+        "upstream_inference_prompt_cost": 0.00152,
+        "upstream_inference_completions_cost": 0.01317
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 0,
+        "image_tokens": 439
+      }
+    }
+  },
+  "images": [
+    {
+      "file": "02-explorer.png",
+      "bytes": 1186940,
+      "sha256": "37b334fc41b481de17b32b59077a81c4f939cd2bac3ba1ab81048b7ebb82fdba",
+      "width": 1024,
+      "height": 1024,
+      "png_bit_depth": 8,
+      "png_color_type": 6
+    }
+  ]
+}

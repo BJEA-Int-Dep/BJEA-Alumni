@@ -231,15 +231,19 @@ export default function AlumniApp() {
     setProfileSaving(true);
     setProfileSaveError('');
     try {
-      const result = await apiRequest<{ profile: PublicProfilePayload }>(
+      const result = await apiRequest<{
+        profile: PublicProfilePayload;
+        published: boolean;
+      }>(
         '/api/profile/me',
         { method: 'PUT', body: JSON.stringify(draft) },
       );
       const profile = profileFromPayload(result.profile);
-      setProfiles((current) => [
-        profile,
-        ...current.filter((item) => item.id !== profile.id),
-      ]);
+      setProfiles((current) =>
+        result.published
+          ? [profile, ...current.filter((item) => item.id !== profile.id)]
+          : current.filter((item) => item.id !== profile.id),
+      );
       setSavedDraft(draft);
       setAuthUser((current) =>
         current ? { ...current, hasProfile: true } : current,
@@ -280,8 +284,10 @@ export default function AlumniApp() {
     <AuthDialog
       open={authOpen}
       initialMode={authMode}
+      publishProfileAfterRegister={saveAfterAuth}
       onOpenChange={setAuthOpen}
       onAuthenticated={authenticated}
+      onCreateProfile={() => beginProfile(createDefaultDraft())}
     />
   );
 
@@ -318,8 +324,10 @@ export default function AlumniApp() {
     <>
       <HomeView
         profiles={profiles}
-        accountNickname={authUser?.nickname}
+        accountName={authUser?.realName || (authUser ? '我的账号' : undefined)}
         hasProfile={authUser?.hasProfile}
+        isProfilePublic={authUser?.preferences.publicProfile}
+        ownProfileId={authUser ? `member-${authUser.id}` : undefined}
         onSelectProfile={openProfile}
         onRequestCreate={requestCreate}
         onLogin={() => openAuth('login')}

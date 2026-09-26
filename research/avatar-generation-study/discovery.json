@@ -1,0 +1,220 @@
+{
+  "checked_at": "2026-09-26T21:30:20.823Z",
+  "model": "openai/gpt-image-2.5-sunburst",
+  "/images/models": {
+    "status": 200,
+    "body": [
+      {
+        "id": "openai/gpt-image-2.5-sunburst",
+        "name": "OpenAI: GPT Image 2.5 Sunburst",
+        "description": "GPT Image 2.5 Sunburst is an image generation and editing model from OpenAI, positioned as the precision-oriented tier of the GPT Image 2.5 series. It is suited to detailed creative...",
+        "created": 1788916368,
+        "architecture": {
+          "input_modalities": [
+            "text",
+            "image"
+          ],
+          "output_modalities": [
+            "image"
+          ]
+        },
+        "supported_parameters": {
+          "aspect_ratio": {
+            "type": "enum",
+            "values": [
+              "1:1",
+              "3:2",
+              "2:3",
+              "4:3",
+              "3:4",
+              "16:9",
+              "9:16",
+              "21:9",
+              "auto"
+            ]
+          },
+          "quality": {
+            "type": "enum",
+            "values": [
+              "auto",
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ]
+          },
+          "background": {
+            "type": "enum",
+            "values": [
+              "auto",
+              "transparent",
+              "opaque"
+            ]
+          },
+          "n": {
+            "type": "range",
+            "min": 1,
+            "max": 10
+          },
+          "input_references": {
+            "type": "range",
+            "min": 0,
+            "max": 16
+          },
+          "output_compression": {
+            "type": "range",
+            "min": 0,
+            "max": 100
+          }
+        },
+        "supports_streaming": true,
+        "endpoints": "/api/v1/images/models/openai/gpt-image-2.5-sunburst/endpoints"
+      }
+    ]
+  },
+  "/models?output_modalities=image": {
+    "status": 200,
+    "body": [
+      {
+        "id": "openai/gpt-image-2.5-sunburst",
+        "canonical_slug": "openai/gpt-image-2.5-sunburst-20260908",
+        "hugging_face_id": null,
+        "name": "OpenAI: GPT Image 2.5 Sunburst",
+        "created": 1788916368,
+        "description": "GPT Image 2.5 Sunburst is an image generation and editing model from OpenAI, positioned as the precision-oriented tier of the GPT Image 2.5 series. It is suited to detailed creative...",
+        "context_length": 400000,
+        "architecture": {
+          "modality": "text+image->image",
+          "input_modalities": [
+            "text",
+            "image"
+          ],
+          "output_modalities": [
+            "image"
+          ],
+          "tokenizer": "GPT",
+          "instruct_type": null
+        },
+        "pricing": {
+          "prompt": "0.000008",
+          "completion": "0.000008",
+          "image_output": "0.00003",
+          "web_search": "0.01",
+          "input_cache_read": "0.000002"
+        },
+        "top_provider": {
+          "context_length": 400000,
+          "max_completion_tokens": 360000,
+          "is_moderated": true
+        },
+        "per_request_limits": null,
+        "supported_parameters": [
+          "frequency_penalty",
+          "logit_bias",
+          "logprobs",
+          "max_tokens",
+          "presence_penalty",
+          "response_format",
+          "seed",
+          "stop",
+          "structured_outputs",
+          "temperature",
+          "top_logprobs",
+          "top_p"
+        ],
+        "default_parameters": {},
+        "supported_voices": null,
+        "knowledge_cutoff": null,
+        "expiration_date": null,
+        "links": {
+          "details": "/api/v1/models/openai/gpt-image-2.5-sunburst-20260908/endpoints"
+        }
+      }
+    ]
+  },
+  "/images/models/openai/gpt-image-2.5-sunburst/endpoints": {
+    "status": 200,
+    "body": {
+      "id": "openai/gpt-image-2.5-sunburst",
+      "endpoints": [
+        {
+          "provider_name": "OpenAI",
+          "provider_slug": "openai",
+          "provider_tag": "openai",
+          "supported_parameters": {
+            "aspect_ratio": {
+              "type": "enum",
+              "values": [
+                "1:1",
+                "3:2",
+                "2:3",
+                "4:3",
+                "3:4",
+                "16:9",
+                "9:16",
+                "21:9",
+                "auto"
+              ]
+            },
+            "quality": {
+              "type": "enum",
+              "values": [
+                "auto",
+                "low",
+                "medium",
+                "high",
+                "xhigh",
+                "max"
+              ]
+            },
+            "background": {
+              "type": "enum",
+              "values": [
+                "auto",
+                "transparent",
+                "opaque"
+              ]
+            },
+            "n": {
+              "type": "range",
+              "min": 1,
+              "max": 10
+            },
+            "input_references": {
+              "type": "range",
+              "min": 0,
+              "max": 16
+            },
+            "output_compression": {
+              "type": "range",
+              "min": 0,
+              "max": 100
+            }
+          },
+          "allowed_passthrough_parameters": [
+            "moderation"
+          ],
+          "supports_streaming": true,
+          "pricing": [
+            {
+              "billable": "input_image",
+              "unit": "token",
+              "cost_usd": 0.000008
+            },
+            {
+              "billable": "input_text",
+              "unit": "token",
+              "cost_usd": 0.000005
+            },
+            {
+              "billable": "output_image",
+              "unit": "token",
+              "cost_usd": 0.00003
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

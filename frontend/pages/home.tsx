@@ -5,8 +5,10 @@ import { TONE_CLASSES, type AlumniProfile } from '@/lib/alumni-data';
 
 interface HomeViewProps {
   profiles: AlumniProfile[];
-  accountNickname?: string;
+  accountName?: string;
   hasProfile?: boolean;
+  isProfilePublic?: boolean;
+  ownProfileId?: string;
   onSelectProfile: (profile: AlumniProfile) => void;
   onRequestCreate: () => void;
   onLogin: () => void;
@@ -15,8 +17,10 @@ interface HomeViewProps {
 
 export function HomeView({
   profiles,
-  accountNickname,
+  accountName,
   hasProfile = false,
+  isProfilePublic = false,
+  ownProfileId,
   onSelectProfile,
   onRequestCreate,
   onLogin,
@@ -31,10 +35,10 @@ export function HomeView({
             <span className="hidden rounded-full border border-[#ef593c]/20 bg-[#ef593c]/8 px-3 py-1.5 text-xs font-bold text-[#c63d27] sm:inline-flex">
               内测中
             </span>
-            {accountNickname ? (
+            {accountName ? (
               <>
                 <span className="hidden items-center gap-1.5 text-xs font-black sm:inline-flex">
-                  <UserRound className="size-3.5" /> {accountNickname}
+                  <UserRound className="size-3.5" /> {accountName}
                 </span>
                 <Button
                   type="button"
@@ -99,43 +103,51 @@ export function HomeView({
         </div>
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4">
-          {profiles.map((person) => (
-            <button
-              key={person.id}
-              type="button"
-              onClick={() => onSelectProfile(person)}
-              className="group overflow-hidden rounded-[22px] bg-card text-left shadow-[0_10px_35px_rgba(55,45,31,0.08)] ring-1 ring-black/[0.06] transition duration-200 hover:-translate-y-1 hover:shadow-[0_18px_45px_rgba(55,45,31,0.14)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#1680bd]/25"
-              aria-label={`查看 ${person.nickname} 的校友主页`}
-            >
-              <div
-                className={`relative flex aspect-[5/4] items-center justify-center overflow-hidden bg-gradient-to-br ${TONE_CLASSES[person.tone]}`}
+          {profiles.map((person) => {
+            const isMine = person.id === ownProfileId;
+            return (
+              <button
+                key={person.id}
+                type="button"
+                onClick={() => onSelectProfile(person)}
+                className="group overflow-hidden rounded-[22px] bg-card text-left shadow-[0_10px_35px_rgba(55,45,31,0.08)] ring-1 ring-black/[0.06] transition duration-200 hover:-translate-y-1 hover:shadow-[0_18px_45px_rgba(55,45,31,0.14)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#1680bd]/25"
+                aria-label={`查看 ${person.nickname} 的校友主页${isMine ? '（我的）' : ''}`}
               >
-                <span className="absolute left-3 top-3 rounded-full bg-white/85 px-2 py-1 text-[10px] font-black text-black/70 shadow-sm backdrop-blur-sm">
-                  CLASS OF &apos;{person.year.slice(-2)}
-                </span>
-                <span
-                  className="select-none text-[clamp(3.5rem,14vw,6.5rem)] drop-shadow-[0_12px_12px_rgba(0,0,0,0.16)] transition duration-300 group-hover:scale-110 group-hover:-rotate-3"
-                  aria-hidden="true"
+                <div
+                  className={`relative flex aspect-[5/4] items-center justify-center overflow-hidden bg-gradient-to-br ${TONE_CLASSES[person.tone]}`}
                 >
-                  {person.emoji}
-                </span>
-                <span className="absolute bottom-3 right-3 grid size-8 place-items-center rounded-full bg-white text-black shadow-md transition group-hover:rotate-45">
-                  <ArrowUpRight className="size-4" />
-                </span>
-              </div>
-              <div className="p-3.5 sm:p-4">
-                <h3 className="truncate text-base font-black tracking-tight sm:text-lg">
-                  {person.nickname}
-                </h3>
-                <p className="mt-1 line-clamp-3 text-xs font-medium leading-[1.55] text-foreground/72 sm:text-sm">
-                  “{person.summary}”
-                </p>
-                <p className="mt-3 truncate border-t border-black/[0.06] pt-2.5 text-[10px] font-bold text-muted-foreground sm:text-xs">
-                  {person.field}
-                </p>
-              </div>
-            </button>
-          ))}
+                  <span className="absolute left-3 top-3 rounded-full bg-white/85 px-2 py-1 text-[10px] font-black text-black/70 shadow-sm backdrop-blur-sm">
+                    CLASS OF &apos;{person.year.slice(-2)}
+                  </span>
+                  {isMine ? (
+                    <span className="absolute right-3 top-3 rounded-full bg-[#ee573c] px-2.5 py-1 text-[10px] font-black text-white shadow-sm">
+                      我的
+                    </span>
+                  ) : null}
+                  <span
+                    className="select-none text-[clamp(3.5rem,14vw,6.5rem)] drop-shadow-[0_12px_12px_rgba(0,0,0,0.16)] transition duration-300 group-hover:scale-110 group-hover:-rotate-3"
+                    aria-hidden="true"
+                  >
+                    {person.emoji}
+                  </span>
+                  <span className="absolute bottom-3 right-3 grid size-8 place-items-center rounded-full bg-white text-black shadow-md transition group-hover:rotate-45">
+                    <ArrowUpRight className="size-4" />
+                  </span>
+                </div>
+                <div className="p-3.5 sm:p-4">
+                  <h3 className="truncate text-base font-black tracking-tight sm:text-lg">
+                    {person.nickname}
+                  </h3>
+                  <p className="mt-1 line-clamp-3 text-xs font-medium leading-[1.55] text-foreground/72 sm:text-sm">
+                    “{person.summary}”
+                  </p>
+                  <p className="mt-3 truncate border-t border-black/[0.06] pt-2.5 text-[10px] font-bold text-muted-foreground sm:text-xs">
+                    {person.field}
+                  </p>
+                </div>
+              </button>
+            );
+          })}
         </div>
 
         <div className="mt-8 rounded-[24px] border border-dashed border-black/15 bg-white/45 p-6 text-center sm:p-8">
@@ -155,11 +167,17 @@ export function HomeView({
         <div className="mx-auto flex max-w-lg items-center gap-3">
           <div className="hidden min-w-0 flex-1 sm:block">
             <p className="text-sm font-black">
-              {hasProfile ? '你的角色卡已经加入校友墙' : '校友墙上还差一个你'}
+              {hasProfile
+                ? isProfilePublic
+                  ? '你的角色卡已经加入校友墙'
+                  : '你的 Profile 已保存为私密资料'
+                : '校友墙上还差一个你'}
             </p>
             <p className="truncate text-xs text-muted-foreground">
               {hasProfile
-                ? '随时回来更新你的人生支线'
+                ? isProfilePublic
+                  ? '随时回来更新你的人生支线'
+                  : '目前仅你和学校老师可见'
                 : '大约 3 分钟，边回答边生成角色卡'}
             </p>
           </div>

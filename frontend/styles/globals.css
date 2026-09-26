@@ -156,3 +156,32 @@
   background: #ffd19f;
   color: #23272b;
 }
+
+.auth-scroll-area {
+  scrollbar-gutter: stable;
+}
+
+.auth-scroll-area::-webkit-scrollbar {
+  width: 4px;
+}
+
+.auth-scroll-area::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.auth-scroll-area::-webkit-scrollbar-thumb {
+  background: rgb(35 39 43 / 14%);
+  border-radius: 999px;
+}
+
+.auth-scroll-area:hover::-webkit-scrollbar-thumb {
+  background: rgb(35 39 43 / 28%);
+}
+
+.auth-scroll-area::-webkit-scrollbar-button {
+  -webkit-appearance: none;
+  background: transparent;
+  display: none;
+  height: 0;
+  width: 0;
+}

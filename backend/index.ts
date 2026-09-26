@@ -3,15 +3,19 @@ import {
   type IncomingMessage,
   type ServerResponse,
 } from 'node:http';
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { loadEnvFile } from 'node:process';
 import { pathToFileURL } from 'node:url';
 import { z } from 'zod';
+import { handleAdminRequest } from './admin.ts';
 import {
+  accountPreferencesSchema,
+  canPublishProfile,
   emailSchema,
   nicknameSchema,
   passwordSchema,
   profileDraftSchema,
+  realNameSchema,
   verificationCodeSchema,
 } from '../shared/account.ts';
 import { suggestionRequestSchema, type Suggestions } from '../shared/avatar.ts';
@@ -41,14 +45,17 @@ try {
 
 const registerRequestSchema = z
   .object({
-    nickname: nicknameSchema,
+    realName: realNameSchema,
     email: emailSchema,
-    password: passwordSchema,
     code: verificationCodeSchema,
+    preferences: accountPreferencesSchema,
   })
   .strict();
 const loginRequestSchema = z
-  .object({ nickname: nicknameSchema, password: passwordSchema })
+  .object({
+    identifier: z.string().trim().min(1, '请输入邮箱或原登录昵称。').max(254),
+    password: passwordSchema,
+  })
   .strict();
 const emailCodeRequestSchema = z
   .object({ email: emailSchema, code: verificationCodeSchema })
@@ -59,16 +66,21 @@ const resetPasswordRequestSchema = emailCodeRequestSchema
 const sendCodeRequestSchema = z
   .object({
     email: emailSchema,
-    purpose: z.enum(['register', 'recover-nickname', 'reset-password']),
+    purpose: z.enum(['login', 'register', 'recover-nickname', 'reset-password']),
   })
   .strict();
 
 interface UserRow {
   id: number;
   nickname: string;
+  real_name: string;
   email: string;
   password_hash: string;
+  account_status: 'active' | 'disabled';
   has_profile: number;
+  notify_major_events: number;
+  notify_community_updates: number;
+  public_profile: number;
 }
 
 interface ProfileRow {
@@ -172,6 +184,20 @@ export function createApiServer(
       if (req.method === 'GET' && url.pathname === '/api/health')
         return json(res, 200, { ok: true });
       if (
+        await handleAdminRequest({
+          req,
+          res,
+          url,
+          database,
+          json,
+          readBody,
+          sameOrigin,
+          limit,
+          clientIp,
+        })
+      )
+        return;
+      if (
         req.method === 'GET' &&
         url.pathname === '/api/auth/nickname-availability'
       ) {
@@ -215,63 +241,104 @@ export function createApiServer(
         const input = parsedBody(registerRequestSchema, await readBody(req));
         if (!verificationCodeMatches(input.code))
           throw new ApiError(400, '验证码不正确。');
-        const normalizedNickname = nicknameKey(input.nickname);
         const normalizedEmail = emailKey(input.email);
-        if (
-          database
-            .prepare('SELECT 1 FROM users WHERE nickname_key = ?')
-            .get(normalizedNickname)
-        )
-          throw new ApiError(409, '这个昵称已经被占用了。');
         if (
           database
             .prepare('SELECT 1 FROM users WHERE email_key = ?')
             .get(normalizedEmail)
         )
           throw new ApiError(409, '这个邮箱已经注册过了。');
-        const passwordHash = await hashPassword(input.password);
+        const legacyLoginName = `alumni_${randomBytes(10).toString('hex')}`;
         let inserted;
         try {
           inserted = database
             .prepare(
               `INSERT INTO users
-                (nickname, nickname_key, email, email_key, password_hash, created_at)
-              VALUES (?, ?, ?, ?, ?, ?)`,
+                (nickname, nickname_key, email, email_key, password_hash,
+                 real_name, notify_major_events, notify_community_updates,
+                 public_profile, preferences_updated_at, created_at)
+              VALUES (?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?)`,
             )
             .run(
-              input.nickname.trim(),
-              normalizedNickname,
+              legacyLoginName,
+              nicknameKey(legacyLoginName),
               input.email,
               normalizedEmail,
-              passwordHash,
+              input.realName,
+              Number(input.preferences.notifyMajorEvents),
+              Number(input.preferences.notifyCommunityUpdates),
+              Number(input.preferences.publicProfile),
+              Date.now(),
               Date.now(),
             );
         } catch {
-          throw new ApiError(409, '昵称或邮箱已经注册过了。');
+          throw new ApiError(409, '这个邮箱已经注册过了。');
         }
         const user = {
           id: Number(inserted.lastInsertRowid),
-          nickname: input.nickname.trim(),
+          nickname: legacyLoginName,
+          real_name: input.realName,
           email: input.email,
-          password_hash: passwordHash,
+          password_hash: '',
+          account_status: 'active',
           has_profile: 0,
+          notify_major_events: Number(input.preferences.notifyMajorEvents),
+          notify_community_updates: Number(input.preferences.notifyCommunityUpdates),
+          public_profile: Number(input.preferences.publicProfile),
         } satisfies UserRow;
         createSession(database, res, user.id);
         return json(res, 201, { user: publicUser(user), draft: null });
+      }
+      if (req.method === 'POST' && url.pathname === '/api/auth/email-login') {
+        sameOrigin(req);
+        limit(`email-login:${clientIp(req)}`, 60);
+        const input = parsedBody(emailCodeRequestSchema, await readBody(req));
+        if (!verificationCodeMatches(input.code))
+          throw new ApiError(400, '验证码不正确。');
+        const user = database
+          .prepare(
+            `SELECT users.id, users.nickname, users.real_name, users.email,
+              users.password_hash, users.account_status,
+              users.notify_major_events, users.notify_community_updates,
+              users.public_profile,
+              EXISTS(SELECT 1 FROM profiles WHERE profiles.user_id = users.id) AS has_profile
+            FROM users WHERE email_key = ?`,
+          )
+          .get(emailKey(input.email)) as UserRow | undefined;
+        if (!user)
+          throw new ApiError(404, '这个邮箱还没有 Profile，请先创建。');
+        if (user.account_status === 'disabled')
+          throw new ApiError(403, '账号已停用，请联系学校老师。');
+        createSession(database, res, user.id);
+        return json(res, 200, {
+          user: publicUser(user),
+          draft: savedDraft(user.id),
+        });
       }
       if (req.method === 'POST' && url.pathname === '/api/auth/login') {
         sameOrigin(req);
         limit(`login:${clientIp(req)}`, 60);
         const input = parsedBody(loginRequestSchema, await readBody(req));
+        const identifier = input.identifier.trim();
         const user = database
           .prepare(
-            `SELECT users.id, users.nickname, users.email, users.password_hash,
+            `SELECT users.id, users.nickname, users.real_name, users.email,
+              users.password_hash,
+              users.account_status,
+              users.notify_major_events, users.notify_community_updates,
+              users.public_profile,
               EXISTS(SELECT 1 FROM profiles WHERE profiles.user_id = users.id) AS has_profile
-            FROM users WHERE nickname_key = ?`,
+            FROM users WHERE email_key = ? OR nickname_key = ?`,
           )
-          .get(nicknameKey(input.nickname)) as UserRow | undefined;
-        if (!user || !(await passwordMatches(input.password, user.password_hash)))
-          throw new ApiError(401, '昵称或密码不正确。');
+          .get(emailKey(identifier), nicknameKey(identifier)) as UserRow | undefined;
+        if (
+          !user ||
+          !user.password_hash ||
+          !(await passwordMatches(input.password, user.password_hash))
+        )
+          throw new ApiError(401, '邮箱、原登录昵称或密码不正确。');
+        if (user.account_status === 'disabled')
+          throw new ApiError(403, '账号已停用，请联系学校老师。');
         createSession(database, res, user.id);
         return json(res, 200, {
           user: publicUser(user),
@@ -282,6 +349,41 @@ export function createApiServer(
         sameOrigin(req);
         deleteSession(database, req, res);
         return json(res, 200, { ok: true });
+      }
+      if (req.method === 'PUT' && url.pathname === '/api/auth/preferences') {
+        sameOrigin(req);
+        limit(`preferences:${clientIp(req)}`, 120);
+        const user = requireUser(database, req);
+        const preferences = parsedBody(
+          accountPreferencesSchema,
+          await readBody(req),
+        );
+        if (preferences.publicProfile) {
+          const draft = savedDraft(user.id);
+          if (!draft || !canPublishProfile(draft))
+            throw new ApiError(
+              400,
+              '公开 Profile 需要昵称、毕业年份和至少一个回答。',
+            );
+        }
+        database
+          .prepare(
+            `UPDATE users SET notify_major_events = ?,
+              notify_community_updates = ?, public_profile = ?,
+              preferences_updated_at = ? WHERE id = ?`,
+          )
+          .run(
+            Number(preferences.notifyMajorEvents),
+            Number(preferences.notifyCommunityUpdates),
+            Number(preferences.publicProfile),
+            Date.now(),
+            user.id,
+          );
+        const updated = currentUser(database, req);
+        return json(res, 200, {
+          user: updated ? publicUser(updated) : publicUser(user),
+          draft: savedDraft(user.id),
+        });
       }
       if (
         req.method === 'POST' &&
@@ -325,11 +427,19 @@ export function createApiServer(
       }
       if (req.method === 'GET' && url.pathname === '/api/profiles') {
         const rows = database
-          .prepare('SELECT user_id, draft_json FROM profiles ORDER BY updated_at DESC')
+          .prepare(
+            `SELECT profiles.user_id, profiles.draft_json
+            FROM profiles
+            JOIN users ON users.id = profiles.user_id
+            WHERE users.account_status = 'active'
+              AND users.public_profile = 1
+            ORDER BY profiles.updated_at DESC`,
+          )
           .all() as ProfileRow[];
         const profiles = rows.flatMap((row) => {
           try {
             const draft = profileDraftSchema.parse(JSON.parse(row.draft_json));
+            if (!canPublishProfile(draft)) return [];
             return [{ id: `member-${row.user_id}`, draft }];
           } catch {
             return [];
@@ -342,14 +452,11 @@ export function createApiServer(
         limit(`save-profile:${clientIp(req)}`, 120);
         const user = requireUser(database, req);
         const draft = parsedBody(profileDraftSchema, await readBody(req));
-        if (
-          !draft.nickname.trim() ||
-          !draft.year.trim() ||
-          !draft.place.trim() ||
-          !draft.direction.trim() ||
-          !draft.reflection.trim()
-        )
-          throw new ApiError(400, '请先完成角色卡的必填内容。');
+        if (user.public_profile && !canPublishProfile(draft))
+          throw new ApiError(
+            400,
+            '公开 Profile 需要昵称、毕业年份和至少一个回答。',
+          );
         const now = Date.now();
         database
           .prepare(
@@ -362,6 +469,7 @@ export function createApiServer(
           .run(user.id, JSON.stringify(draft), now, now);
         return json(res, 200, {
           profile: { id: `member-${user.id}`, draft },
+          published: Boolean(user.public_profile),
         });
       }
       if (req.method === 'GET' && url.pathname === '/api/avatar/emojis') {

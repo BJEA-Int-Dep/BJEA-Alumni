@@ -22,6 +22,12 @@ export const passwordSchema = z
   .min(8, '密码至少需要 8 个字符。')
   .max(72, '密码最多 72 个字符。');
 
+export const realNameSchema = z
+  .string()
+  .trim()
+  .min(1, '请填写真实姓名。')
+  .max(80, '姓名最多 80 个字符。');
+
 export const verificationCodeSchema = z
   .string()
   .trim()
@@ -74,11 +80,41 @@ export const profileDraftSchema = z.object({
 
 export type PersistedProfileDraft = z.infer<typeof profileDraftSchema>;
 
+export const accountPreferencesSchema = z
+  .object({
+    notifyMajorEvents: z.boolean(),
+    notifyCommunityUpdates: z.boolean(),
+    publicProfile: z.boolean(),
+  })
+  .strict();
+
+export type AccountPreferences = z.infer<typeof accountPreferencesSchema>;
+
+export const defaultAccountPreferences = (): AccountPreferences => ({
+  notifyMajorEvents: false,
+  notifyCommunityUpdates: false,
+  publicProfile: false,
+});
+
+export function canPublishProfile(draft: PersistedProfileDraft) {
+  const hasPublicAnswer = [
+    draft.personalityCustom,
+    draft.statusId,
+    draft.statusCustom,
+    draft.place,
+    draft.direction,
+    draft.reflection,
+    draft.advice,
+  ].some((value) => value.trim());
+  return Boolean(draft.nickname.trim() && draft.year.trim() && hasPublicAnswer);
+}
+
 export interface AccountUser {
   id: number;
-  nickname: string;
+  realName: string;
   email: string;
   hasProfile: boolean;
+  preferences: AccountPreferences;
 }
 
 export interface AuthPayload {

@@ -1,0 +1,46 @@
+{
+  "id": "03-maker",
+  "completed_at": "2026-09-26T21:31:37.742Z",
+  "status": 200,
+  "headers_ms": 15782,
+  "elapsed_ms": 16127,
+  "response": {
+    "created": 1790458296,
+    "data": [
+      {
+        "b64_json": "[saved to 03-maker.png]",
+        "media_type": "image/png"
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 320,
+      "completion_tokens": 439,
+      "total_tokens": 759,
+      "cost": 0.01477,
+      "is_byok": false,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      },
+      "cost_details": {
+        "upstream_inference_cost": 0.01477,
+        "upstream_inference_prompt_cost": 0.0016,
+        "upstream_inference_completions_cost": 0.01317
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 0,
+        "image_tokens": 439
+      }
+    }
+  },
+  "images": [
+    {
+      "file": "03-maker.png",
+      "bytes": 1086448,
+      "sha256": "f5f35cf51f4ba3ccb4e9dd897f371cec5be78efe229fa3adce6f48a034896438",
+      "width": 1024,
+      "height": 1024,
+      "png_bit_depth": 8,
+      "png_color_type": 6
+    }
+  ]
+}

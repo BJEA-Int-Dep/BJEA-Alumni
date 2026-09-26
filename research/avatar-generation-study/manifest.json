@@ -1,0 +1,146 @@
+{
+  "created_at": "2026-09-26T21:34:54.844Z",
+  "secret_scan_matches": 0,
+  "files": [
+    {
+      "file": "01-reader.png",
+      "bytes": 1013881,
+      "sha256": "46c9dce9f95c0874d9f764c685118ac0cb010ef9b80ced087ac6e0e26f25940f"
+    },
+    {
+      "file": "01-reader.request.json",
+      "bytes": 2046,
+      "sha256": "14a5b518df29ff86557f6d4545137609f35f07daec5421dc7efd2221168c7e3d"
+    },
+    {
+      "file": "01-reader.result.json",
+      "bytes": 1075,
+      "sha256": "67de9c30729c696c61b9d2a795a7db0181f4c96e18c9d56c14f8e6661a25562c"
+    },
+    {
+      "file": "02-explorer.png",
+      "bytes": 1186940,
+      "sha256": "37b334fc41b481de17b32b59077a81c4f939cd2bac3ba1ab81048b7ebb82fdba"
+    },
+    {
+      "file": "02-explorer.request.json",
+      "bytes": 2085,
+      "sha256": "4a8a67bf5c27f9c96d2aaa5a0caa74a6774a4dfeab4bc16324603e9e146f307b"
+    },
+    {
+      "file": "02-explorer.result.json",
+      "bytes": 1082,
+      "sha256": "b3edecfa2f349dd53660a74b86d2c49a104f598f35812d9c0265f0c3bbc70fdb"
+    },
+    {
+      "file": "03-maker.png",
+      "bytes": 1086448,
+      "sha256": "f5f35cf51f4ba3ccb4e9dd897f371cec5be78efe229fa3adce6f48a034896438"
+    },
+    {
+      "file": "03-maker.request.json",
+      "bytes": 2156,
+      "sha256": "33daff0b716f3aff6e97ffc50cd82cb54a8029b23a7b772c94f38d56ad8361f0"
+    },
+    {
+      "file": "03-maker.result.json",
+      "bytes": 1072,
+      "sha256": "2f9e7ad6b453280f66dd844f1660abc99ac29a9f8730d7489d40dbb36418fdd1"
+    },
+    {
+      "file": "04-reader-evolve.png",
+      "bytes": 1040960,
+      "sha256": "20ab2831c2b518b441bbed8078909d1a47e11476508bfee189bd4ab4bd3fdd54"
+    },
+    {
+      "file": "04-reader-evolve.request.json",
+      "bytes": 2192,
+      "sha256": "fb37998b699c863c38fbe19e3249d3e8bfc6634fdbd5a62386e5e2711dc8f8b5"
+    },
+    {
+      "file": "04-reader-evolve.result.json",
+      "bytes": 1102,
+      "sha256": "47e3ba7d5ba92849ccd2399c994bc3a1fef58e48e68b0f5bb7b8ad86b2ddd4a2"
+    },
+    {
+      "file": "05-reader-evolve.png",
+      "bytes": 1058017,
+      "sha256": "43ef1a139511f5e1627e7ca8e39c7578c7aa5706f3d58394cc2033ff19d14377"
+    },
+    {
+      "file": "05-reader-evolve.request.json",
+      "bytes": 2214,
+      "sha256": "210b94083a281435feea724663938d77e3171ab770a41f63c0da18698daf0fa7"
+    },
+    {
+      "file": "05-reader-evolve.result.json",
+      "bytes": 1102,
+      "sha256": "ad3e1cc0e4d037593dbd28f2c4ed5cf7992bb539f2d33bd2ad3e0d5a520beae9"
+    },
+    {
+      "file": "06-safety.png",
+      "bytes": 967371,
+      "sha256": "9d04780c8d56655c7abcf12f3a42496d7bcc7a7724e84487f91207f28b69ca68"
+    },
+    {
+      "file": "06-safety.request.json",
+      "bytes": 2302,
+      "sha256": "2f74b1677b249272aea9e3a4b534c21181294be45fa36be1ba241b6ab2c193e7"
+    },
+    {
+      "file": "06-safety.result.json",
+      "bytes": 1074,
+      "sha256": "74dfacf3cf63bf2df3878b29e1cea368f0cedec5f3e83214e23f040dbe3e7dae"
+    },
+    {
+      "file": "07-reader-low.png",
+      "bytes": 1058676,
+      "sha256": "12d0d2e0e14a42f7ccfb8725206bd39a5922a66a69b71ba7f43ab4ad5f268ca6"
+    },
+    {
+      "file": "07-reader-low.request.json",
+      "bytes": 2047,
+      "sha256": "d8cfa65ffbe848bcf423648eb20bd9889a7bc7db22cd45f7d5fda031d8e13105"
+    },
+    {
+      "file": "07-reader-low.result.json",
+      "bytes": 1087,
+      "sha256": "6b48eda82ecc09022b3dbdf9214cdf54fa70a014fe1d03d2210f8d6e2f21c521"
+    },
+    {
+      "file": "contact-sheet.png",
+      "bytes": 724069,
+      "sha256": "ea1b63872b55c2322607cb7c208fc280e627ab17ef67152feec82206e1ab6a6f"
+    },
+    {
+      "file": "discovery.json",
+      "bytes": 5841,
+      "sha256": "4eff61134b58bc8cadb6693f4335cd26cf05e5c47d2a8b3e69161f9197b4b276"
+    },
+    {
+      "file": "image-metrics.json",
+      "bytes": 21987,
+      "sha256": "4f168dc790b97a8726b7dddb3ac5a933198c8bb70bf86a1590c9190c6f153ca8"
+    },
+    {
+      "file": "inspect-png.mjs",
+      "bytes": 2787,
+      "sha256": "ce8fc8634dc257cccbdf09976b7bf6d628a33ab9ecb08d1ef02cfe7b6473052c"
+    },
+    {
+      "file": "make-contact-sheet.ps1",
+      "bytes": 3171,
+      "sha256": "88d750400a73165c5155867b98e50d4e8cf1ac9b880234c4becbaf45613e1f0a"
+    },
+    {
+      "file": "REPORT.md",
+      "bytes": 12344,
+      "sha256": "b9a72fe3029a5207143e3267951f1df4befba0101e75ee2ff53f9b5b3953d16d"
+    },
+    {
+      "file": "run-study.mjs",
+      "bytes": 9311,
+      "sha256": "22ffff19f2731731469071cac70ea9616d354a7864df481d9a3397439c7962a6"
+    }
+  ]
+}
