@@ -75,7 +75,7 @@ export function HomeView({
           <div className="relative max-w-2xl">
             <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold text-white/85 ring-1 ring-white/15">
               <Sparkles className="size-3.5 text-[#ffbc32]" />
-              300 个人，300 条不一样的路
+              每个人，一条不一样的路
             </div>
             <h1 className="text-balance text-[clamp(2rem,7vw,4.6rem)] font-black leading-[0.98] tracking-[-0.055em]">
               毕业以后，
@@ -83,7 +83,7 @@ export function HomeView({
               大家都去哪儿了？
             </h1>
             <p className="mt-4 max-w-lg text-sm font-medium leading-6 text-white/68 sm:text-base">
-              没有成功模板，也不是简历排行榜。看看学长学姐们真实、绕路、偶尔离谱的人生轨迹。
+              没有成功模板，也不是简历排行榜。先看看不同的选择、绕路与人生支线。
             </p>
           </div>
         </div>
@@ -96,7 +96,7 @@ export function HomeView({
               Meet the alumni
             </p>
             <h2 className="text-2xl font-black tracking-tight sm:text-3xl">
-              先认识几位吧
+              {profiles.length ? '先认识几位吧' : '校友墙还没有公开的 Profile'}
             </h2>
           </div>
           <p className="hidden text-sm font-medium text-muted-foreground sm:block">
@@ -124,6 +124,10 @@ export function HomeView({
                   {isMine ? (
                     <span className="absolute right-3 top-3 rounded-full bg-[#ee573c] px-2.5 py-1 text-[10px] font-black text-white shadow-sm">
                       我的
+                    </span>
+                  ) : person.example ? (
+                    <span className="absolute right-3 top-3 rounded-full bg-white/85 px-2.5 py-1 text-[10px] font-black text-black/70 shadow-sm">
+                      示例
                     </span>
                   ) : null}
                   <span
@@ -160,7 +164,7 @@ export function HomeView({
             还有很多人生支线，正在加载
           </h2>
           <p className="mx-auto mt-1 max-w-md text-sm font-medium leading-6 text-muted-foreground">
-            这里没有排名，也没有标准答案。每一段真实经历，都会让后来的人多一个参考。
+            这里没有排名，也没有标准答案。期待更多校友把自己的经历分享出来。
           </p>
         </div>
       </section>

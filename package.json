@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "node dev.mjs",
     "dev:api": "tsx watch backend/index.ts",
+    "seed:examples": "tsx scripts/seed-example-profiles.ts",
     "start:api": "tsx backend/index.ts",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",

@@ -35,6 +35,10 @@ type VisibilityState = Record<VisibilityField, boolean>;
 interface ProfileViewProps {
   profile: AlumniProfile;
   isOwner?: boolean;
+  publicProfile?: boolean;
+  visibilitySaving?: boolean;
+  visibilityError?: string;
+  onPublicProfileChange?: (value: boolean) => void;
   onBack: () => void;
   onHome: () => void;
   onCreate: () => void;
@@ -58,6 +62,10 @@ function PrivacyBadge({ isPublic }: { isPublic: boolean }) {
 export function ProfileView({
   profile,
   isOwner = false,
+  publicProfile = false,
+  visibilitySaving = false,
+  visibilityError = '',
+  onPublicProfileChange,
   onBack,
   onHome,
   onCreate,
@@ -102,8 +110,9 @@ export function ProfileView({
         onHome={onHome}
         right={
           isOwner ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#edf5e6] px-3 py-1.5 text-xs font-black text-[#3f7a3c]">
-              <Check className="size-3.5" /> 已加入校友墙
+            <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-black ${publicProfile ? 'bg-[#edf5e6] text-[#3f7a3c]' : 'bg-[#eceae5] text-[#666b6e]'}`}>
+              {publicProfile ? <Check className="size-3.5" /> : <Lock className="size-3.5" />}
+              {publicProfile ? '已加入校友墙' : '仅自己可见'}
             </span>
           ) : (
             <Button
@@ -125,16 +134,46 @@ export function ProfileView({
           <ArrowLeft className="size-4" /> 返回校友墙
         </Button>
 
+        {profile.example ? (
+          <p className="mb-4 rounded-xl bg-[#fff0dc] px-4 py-2 text-xs font-bold text-[#885421]">
+            示例 Profile · 以下经历为虚构内容
+          </p>
+        ) : null}
+
         {isOwner ? (
           <div className="mb-5 flex items-center gap-3 rounded-2xl border border-[#64a94e]/25 bg-[#edf5e6] p-4">
             <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-white text-[#4f9445] shadow-sm">
               <Sparkles className="size-4" />
             </span>
             <div>
-              <p className="font-black">你的 Profile 已经长好了</p>
-              <p className="mt-0.5 text-xs font-medium text-[#52714e]">这是别人看到的同款页面。</p>
+              <p className="font-black">你的 Profile 已经保存</p>
+              <p className="mt-0.5 text-xs font-medium text-[#52714e]">
+                {publicProfile ? '已发布到校友墙，大家可以看到。' : '目前只有你能看到；打开下方开关后才会显示在校友墙。'}
+              </p>
             </div>
           </div>
+        ) : null}
+
+        {isOwner ? (
+          <section className="mb-5 rounded-2xl border border-black/10 bg-white p-4 sm:p-5">
+            <label className="flex cursor-pointer items-start justify-between gap-4">
+              <span>
+                <span className="block font-black">公开我的 Profile</span>
+                <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                  开启后任何人都能在校友墙浏览；邮箱不会公开。关闭后会从校友墙移除，资料仍会保存。
+                </span>
+              </span>
+              <input
+                type="checkbox"
+                checked={publicProfile}
+                onChange={(event) => onPublicProfileChange?.(event.target.checked)}
+                disabled={visibilitySaving}
+                className="mt-1 size-5 shrink-0 accent-[#ee573c]"
+              />
+            </label>
+            {visibilitySaving ? <p role="status" className="mt-2 text-xs text-muted-foreground">正在保存公开设置…</p> : null}
+            {visibilityError ? <p role="alert" className="mt-2 text-xs font-bold text-destructive">{visibilityError}</p> : null}
+          </section>
         ) : null}
 
         <article className="overflow-hidden rounded-[30px] bg-white shadow-[0_24px_70px_rgba(54,44,30,0.12)] ring-1 ring-black/[0.06]">
@@ -181,7 +220,7 @@ export function ProfileView({
               {detailRows.map((row) => {
                 const Icon = row.icon;
                 const isPublic =
-                  row.key === 'status' ? true : visibility[row.key];
+                  row.key === 'status' ? true : publicProfile && visibility[row.key];
                 return (
                   <div
                     key={row.key}
@@ -208,7 +247,7 @@ export function ProfileView({
                     <MessageCircle className="size-4" /> 一点真心话
                   </p>
                   {isOwner ? (
-                    <PrivacyBadge isPublic={visibility.reflection} />
+                    <PrivacyBadge isPublic={publicProfile && visibility.reflection} />
                   ) : null}
                 </div>
                 <p className="mt-3 text-lg font-black leading-8">
@@ -221,7 +260,7 @@ export function ProfileView({
                     <Sparkles className="size-4" /> 给学弟学妹的话
                   </p>
                   {isOwner ? (
-                    <PrivacyBadge isPublic={visibility.advice} />
+                    <PrivacyBadge isPublic={publicProfile && visibility.advice} />
                   ) : null}
                 </div>
                 <blockquote className="mt-3 border-l-4 border-[#f6a624] pl-4 text-lg font-black leading-8">
@@ -333,7 +372,7 @@ export function ProfileView({
                 <div>
                   <p className="text-xs font-black">亦中校友宇宙</p>
                   <p className="mt-0.5 text-[10px] font-medium text-white/45">
-                    300 个人，300 条不一样的路
+                    每个人，一条不一样的路
                   </p>
                 </div>
                 <span className="rounded-full bg-[#ee573c] px-3 py-1.5 text-[10px] font-black">

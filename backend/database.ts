@@ -48,6 +48,13 @@ export function openDatabase(path = process.env.DATABASE_PATH || '.data/bjea.sql
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS example_profiles (
+      id TEXT PRIMARY KEY,
+      draft_json TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
   `);
   const userColumns = db
     .prepare('PRAGMA table_info(users)')

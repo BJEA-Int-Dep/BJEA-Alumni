@@ -439,7 +439,7 @@ export function createApiServer(
         return json(res, 200, { ok: true });
       }
       if (req.method === 'GET' && url.pathname === '/api/profiles') {
-        const rows = database
+        const memberRows = database
           .prepare(
             `SELECT profiles.user_id, profiles.draft_json
             FROM profiles
@@ -449,7 +449,7 @@ export function createApiServer(
             ORDER BY profiles.updated_at DESC`,
           )
           .all() as ProfileRow[];
-        const profiles = rows.flatMap((row) => {
+        const memberProfiles = memberRows.flatMap((row) => {
           try {
             const draft = profileDraftSchema.parse(JSON.parse(row.draft_json));
             if (!canPublishProfile(draft)) return [];
@@ -458,7 +458,19 @@ export function createApiServer(
             return [];
           }
         });
-        return json(res, 200, { profiles });
+        const exampleRows = database
+          .prepare('SELECT id, draft_json FROM example_profiles ORDER BY created_at, id')
+          .all() as Array<{ id: string; draft_json: string }>;
+        const exampleProfiles = exampleRows.flatMap((row) => {
+          try {
+            const draft = profileDraftSchema.parse(JSON.parse(row.draft_json));
+            if (!canPublishProfile(draft)) return [];
+            return [{ id: `example-${row.id}`, draft, example: true }];
+          } catch {
+            return [];
+          }
+        });
+        return json(res, 200, { profiles: [...memberProfiles, ...exampleProfiles] });
       }
       if (req.method === 'PUT' && url.pathname === '/api/profile/me') {
         sameOrigin(req);

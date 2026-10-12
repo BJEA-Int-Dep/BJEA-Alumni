@@ -23,7 +23,7 @@ import {
   type DraftProfile,
 } from '@/features/onboarding/draft';
 import { apiRequest } from '@/lib/api';
-import { ALUMNI, type AlumniProfile } from '@/lib/alumni-data';
+import type { AlumniProfile } from '@/lib/alumni-data';
 import { HomeView } from '@/pages/home';
 import { ProfileView } from '@/pages/profile';
 
@@ -60,16 +60,14 @@ function readRoute(): AppRoute {
 }
 
 function profileFromPayload(payload: PublicProfilePayload): AlumniProfile {
-  return { ...draftToProfile(payload.draft), id: payload.id };
+  return { ...draftToProfile(payload.draft), id: payload.id, example: payload.example };
 }
 
 export default function AlumniApp() {
   const [initialRoute] = useState(readRoute);
   const [view, setView] = useState<View>(initialRoute.view);
-  const [selectedProfile, setSelectedProfile] = useState<AlumniProfile>(
-    ALUMNI.find((profile) => profile.id === initialRoute.profileId) ?? ALUMNI[0],
-  );
-  const [profiles, setProfiles] = useState<AlumniProfile[]>(ALUMNI);
+  const [selectedProfile, setSelectedProfile] = useState<AlumniProfile | null>(null);
+  const [profiles, setProfiles] = useState<AlumniProfile[]>([]);
   const [authReady, setAuthReady] = useState(false);
   const [authUser, setAuthUser] = useState<AccountUser | null>(null);
   const [savedDraft, setSavedDraft] = useState<DraftProfile | null>(null);
@@ -80,6 +78,8 @@ export default function AlumniApp() {
   const [draft, setDraft] = useState<DraftProfile>(createDefaultDraft);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSaveError, setProfileSaveError] = useState('');
+  const [visibilitySaving, setVisibilitySaving] = useState(false);
+  const [visibilityError, setVisibilityError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -89,13 +89,7 @@ export default function AlumniApp() {
     ])
       .then(([me, publicProfiles]) => {
         if (cancelled) return;
-        const memberProfiles = publicProfiles.profiles.map(profileFromPayload);
-        const allProfiles = [
-          ...memberProfiles,
-          ...ALUMNI.filter(
-            (demo) => !memberProfiles.some((member) => member.id === demo.id),
-          ),
-        ];
+        const allProfiles = publicProfiles.profiles.map(profileFromPayload);
         setProfiles(allProfiles);
         setAuthUser(me.user);
         if (me.draft) {
@@ -263,6 +257,31 @@ export default function AlumniApp() {
     openAuth('register', true);
   };
 
+  const updateProfileVisibility = async (publicProfile: boolean) => {
+    if (!authUser || !savedDraft) return;
+    setVisibilitySaving(true);
+    setVisibilityError('');
+    try {
+      const result = await apiRequest<AuthPayload>('/api/auth/preferences', {
+        method: 'PUT',
+        body: JSON.stringify({ ...authUser.preferences, publicProfile }),
+      });
+      setAuthUser(result.user);
+      const profile = { ...draftToProfile(savedDraft), id: `member-${result.user.id}` };
+      setProfiles((current) =>
+        publicProfile
+          ? [profile, ...current.filter((item) => item.id !== profile.id)]
+          : current.filter((item) => item.id !== profile.id),
+      );
+    } catch (cause) {
+      setVisibilityError(
+        cause instanceof Error ? cause.message : '公开设置保存失败，请重试。',
+      );
+    } finally {
+      setVisibilitySaving(false);
+    }
+  };
+
   const openProfile = (profile: AlumniProfile) => {
     if (authUser && profile.id === `member-${authUser.id}` && savedDraft) {
       setDraft(savedDraft);
@@ -316,11 +335,15 @@ export default function AlumniApp() {
     );
   }
 
-  if (view === 'detail' || (view === 'complete' && authUser)) {
+  if ((view === 'detail' && selectedProfile) || (view === 'complete' && authUser)) {
     return (
       <ProfileView
-        profile={view === 'complete' ? draftToProfile(draft) : selectedProfile}
+        profile={view === 'complete' ? draftToProfile(draft) : selectedProfile!}
         isOwner={view === 'complete'}
+        publicProfile={view === 'complete' && Boolean(authUser?.preferences.publicProfile)}
+        visibilitySaving={visibilitySaving}
+        visibilityError={visibilityError}
+        onPublicProfileChange={(value) => void updateProfileVisibility(value)}
         onBack={goHome}
         onHome={goHome}
         onCreate={requestCreate}

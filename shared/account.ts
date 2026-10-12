@@ -127,4 +127,5 @@ export interface AuthPayload {
 export interface PublicProfilePayload {
   id: string;
   draft: PersistedProfileDraft;
+  example?: boolean;
 }
