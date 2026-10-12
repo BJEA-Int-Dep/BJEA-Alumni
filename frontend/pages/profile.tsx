@@ -138,7 +138,7 @@ export function ProfileView({
           >
             <ArrowLeft className="size-4" /> 返回校友墙
           </Button>
-          {!isOwner && shareProfileUrl ? (
+          {!isOwner ? (
             <Button variant="outline" onClick={() => setShareOpen(true)} className="h-10 rounded-xl border-black/10 bg-white px-4 font-black">
               <Share2 className="size-4" /> 分享
             </Button>
@@ -339,6 +339,7 @@ export function ProfileView({
         onOpenChange={setShareOpen}
         profile={profile}
         profileUrl={shareProfileUrl}
+        siteUrl={`${window.location.origin}/`}
       />
     </main>
   );

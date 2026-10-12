@@ -59,33 +59,66 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number,
   return lines;
 }
 
-export async function renderSharePoster(profile: AlumniProfile, profileUrl: string): Promise<Blob> {
+function createPosterCanvas() {
   const canvas = document.createElement('canvas');
   canvas.width = WIDTH;
   canvas.height = HEIGHT;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('浏览器暂时无法生成海报。');
-
-  const ink = '#24282c';
-  const muted = '#686d70';
-  const paper = '#f8f5ed';
-  ctx.fillStyle = paper;
+  ctx.fillStyle = '#f8f5ed';
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
-
   ctx.textBaseline = 'middle';
-  ctx.fillStyle = ink;
+  return { canvas, ctx };
+}
+
+async function drawPosterHeader(ctx: CanvasRenderingContext2D) {
+  ctx.fillStyle = '#24282c';
   ctx.font = '900 29px "Noto Sans SC", "Microsoft YaHei", sans-serif';
   ctx.fillText('BJEA  /  ALUMNI', 72, 82);
-  ctx.fillStyle = muted;
+  ctx.fillStyle = '#686d70';
   ctx.font = '600 21px "Noto Sans SC", "Microsoft YaHei", sans-serif';
   ctx.fillText('毕业之后的故事', 72, 122);
   ctx.fillStyle = '#d9d6ce';
   ctx.fillRect(72, 160, 936, 2);
-
   try {
     const logo = await loadImage('/school-logo.png');
     ctx.drawImage(logo, 912, 55, 96, 78);
   } catch { /* The poster can still be saved without the logo. */ }
+}
+
+async function drawQrCard(ctx: CanvasRenderingContext2D, url: string, title: string) {
+  const qrDataUrl = await QRCode.toDataURL(url, {
+    errorCorrectionLevel: 'M',
+    margin: 2,
+    width: 210,
+    color: { dark: '#24282c', light: '#ffffff' },
+  });
+  const qr = await loadImage(qrDataUrl);
+  ctx.fillStyle = '#ffffff';
+  roundRect(ctx, 72, 1182, 936, 248, 28);
+  ctx.drawImage(qr, 92, 1201, 210, 210);
+  ctx.fillStyle = '#24282c';
+  ctx.font = '900 40px "Noto Sans SC", "Microsoft YaHei", sans-serif';
+  ctx.fillText(title, 346, 1248);
+  ctx.fillStyle = '#686d70';
+  ctx.font = '600 27px "Noto Sans SC", "Microsoft YaHei", sans-serif';
+  ctx.fillText('亦中校友宇宙', 346, 1300);
+  ctx.font = '500 23px "Noto Sans SC", "Microsoft YaHei", sans-serif';
+  ctx.fillText(new URL(url).host, 346, 1350, 620);
+}
+
+function posterBlob(canvas: HTMLCanvasElement): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('海报保存失败，请重试。')), 'image/png');
+  });
+}
+
+export async function renderSharePoster(profile: AlumniProfile, profileUrl: string): Promise<Blob> {
+  const { canvas, ctx } = createPosterCanvas();
+
+  const ink = '#24282c';
+  const muted = '#686d70';
+  await drawPosterHeader(ctx);
 
   const gradient = ctx.createLinearGradient(72, 200, 1008, 748);
   const colors = toneColors[profile.tone];
@@ -145,28 +178,68 @@ export async function renderSharePoster(profile: AlumniProfile, profileUrl: stri
 
   ctx.fillStyle = '#d9d6ce';
   ctx.fillRect(72, 1146, 936, 2);
-  const qrDataUrl = await QRCode.toDataURL(profileUrl, {
-    errorCorrectionLevel: 'M',
-    margin: 2,
-    width: 210,
-    color: { dark: ink, light: '#ffffff' },
-  });
-  const qr = await loadImage(qrDataUrl);
-  ctx.fillStyle = '#ffffff';
-  roundRect(ctx, 72, 1182, 936, 248, 28);
-  ctx.drawImage(qr, 92, 1201, 210, 210);
+  await drawQrCard(ctx, profileUrl, '扫码查看 Profile');
+  return posterBlob(canvas);
+}
 
-  ctx.fillStyle = ink;
-  ctx.font = '900 40px "Noto Sans SC", "Microsoft YaHei", sans-serif';
-  ctx.fillText('扫码查看 Profile', 346, 1248);
-  ctx.fillStyle = muted;
-  ctx.font = '600 27px "Noto Sans SC", "Microsoft YaHei", sans-serif';
-  ctx.fillText('亦中校友宇宙', 346, 1300);
-  ctx.font = '500 23px "Noto Sans SC", "Microsoft YaHei", sans-serif';
-  const host = new URL(profileUrl).host;
-  ctx.fillText(host, 346, 1350, 620);
+export async function renderAlumniWallPoster(siteUrl: string): Promise<Blob> {
+  const { canvas, ctx } = createPosterCanvas();
+  await drawPosterHeader(ctx);
 
-  return new Promise((resolve, reject) => {
-    canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('海报保存失败，请重试。')), 'image/png');
-  });
+  ctx.fillStyle = '#24282c';
+  ctx.font = '900 91px "Noto Sans SC", "Microsoft YaHei", sans-serif';
+  ctx.fillText('毕业以后，', 72, 286);
+  ctx.font = '900 76px "Noto Sans SC", "Microsoft YaHei", sans-serif';
+  ctx.fillText('大家都去哪儿了？', 72, 397);
+  ctx.fillStyle = '#62686b';
+  ctx.font = '600 32px "Noto Sans SC", "Microsoft YaHei", sans-serif';
+  ctx.fillText('没有标准答案，来看看不同的选择与人生支线。', 72, 507, 936);
+
+  const gradient = ctx.createLinearGradient(72, 630, 1008, 1092);
+  gradient.addColorStop(0, '#f28359');
+  gradient.addColorStop(0.55, '#f6a64f');
+  gradient.addColorStop(1, '#f7d475');
+  ctx.fillStyle = gradient;
+  roundRect(ctx, 72, 596, 936, 512, 32);
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(72, 596, 936, 512, 32);
+  ctx.clip();
+  ctx.fillStyle = 'rgba(255,255,255,0.22)';
+  ctx.beginPath();
+  ctx.arc(90, 1090, 210, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(1030, 600, 230, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+  ctx.lineWidth = 9;
+  ctx.lineCap = 'round';
+  ctx.setLineDash([17, 22]);
+  ctx.beginPath();
+  ctx.moveTo(190, 960);
+  ctx.bezierCurveTo(285, 750, 470, 1035, 570, 805);
+  ctx.bezierCurveTo(690, 600, 800, 875, 913, 712);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  for (const [x, y, color] of [[190, 960, '#24282c'], [570, 805, '#1678b8'], [913, 712, '#4e9b62']] as const) {
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(x, y, 40, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(x, y, 22, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.fillStyle = '#24282c';
+  ctx.font = '900 29px "Noto Sans SC", "Microsoft YaHei", sans-serif';
+  ctx.fillText('每个人，一条不一样的路。', 118, 668);
+  ctx.restore();
+
+  ctx.fillStyle = '#d9d6ce';
+  ctx.fillRect(72, 1146, 936, 2);
+  await drawQrCard(ctx, siteUrl, '扫码逛校友墙');
+  return posterBlob(canvas);
 }

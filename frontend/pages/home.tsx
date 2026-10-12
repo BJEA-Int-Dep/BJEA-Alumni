@@ -1,7 +1,9 @@
-import { ArrowUpRight, LogIn, Sparkles, UserRound } from 'lucide-react';
+import { useState } from 'react';
+import { ArrowUpRight, LogIn, Share2, Sparkles, UserRound } from 'lucide-react';
 import { SchoolHeader } from '@/components/school-header';
 import { Button } from '@/components/ui/button';
 import { EmojiAvatar } from '@/features/avatar/emoji-avatar';
+import { SharePosterDialog } from '@/features/share/share-poster-dialog';
 import { TONE_CLASSES, type AlumniProfile } from '@/lib/alumni-data';
 
 interface HomeViewProps {
@@ -27,6 +29,7 @@ export function HomeView({
   onRequestCreate,
   onLogin,
 }: HomeViewProps) {
+  const [shareOpen, setShareOpen] = useState(false);
   return (
     <main className={`min-h-screen overflow-x-hidden bg-background text-foreground ${hasProfile ? 'pb-16' : 'pb-32'}`}>
       <SchoolHeader
@@ -36,6 +39,9 @@ export function HomeView({
             <span className="hidden rounded-full border border-[#ef593c]/20 bg-[#ef593c]/8 px-3 py-1.5 text-xs font-bold text-[#c63d27] sm:inline-flex">
               内测中
             </span>
+            <Button type="button" variant="outline" onClick={() => setShareOpen(true)} className="h-9 rounded-xl border-black/10 bg-white px-3 font-black" aria-label="分享校友墙">
+              <Share2 className="size-4" /> 分享
+            </Button>
             {accountName ? (
               <button
                 type="button"
@@ -188,6 +194,7 @@ export function HomeView({
           </div>
         </div>
       ) : null}
+      <SharePosterDialog open={shareOpen} onOpenChange={setShareOpen} siteUrl={`${window.location.origin}/`} />
     </main>
   );
 }
