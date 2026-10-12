@@ -273,6 +273,15 @@ export default function AlumniApp() {
     navigate(`/alumni/${encodeURIComponent(profile.id)}`, 'detail');
   };
 
+  const openOwnProfile = () => {
+    if (!savedDraft) {
+      beginProfile();
+      return;
+    }
+    setDraft(savedDraft);
+    navigate('/profile/my-profile', 'complete');
+  };
+
   if (!authReady)
     return (
       <main className="grid min-h-screen place-items-center bg-background text-sm font-bold text-muted-foreground">
@@ -316,6 +325,7 @@ export default function AlumniApp() {
         onHome={goHome}
         onCreate={requestCreate}
         onEdit={() => navigate('/create?step=7', 'create')}
+        onLogout={() => void logout()}
       />
     );
   }
@@ -326,12 +336,12 @@ export default function AlumniApp() {
         profiles={profiles}
         accountName={authUser?.realName || (authUser ? '我的账号' : undefined)}
         hasProfile={authUser?.hasProfile}
-        isProfilePublic={authUser?.preferences.publicProfile}
         ownProfileId={authUser ? `member-${authUser.id}` : undefined}
+        ownProfile={savedDraft ? draftToProfile(savedDraft) : undefined}
         onSelectProfile={openProfile}
+        onOwnProfile={openOwnProfile}
         onRequestCreate={requestCreate}
         onLogin={() => openAuth('login')}
-        onLogout={() => void logout()}
       />
 
       <Dialog open={identityOpen} onOpenChange={setIdentityOpen}>

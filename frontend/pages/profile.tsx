@@ -7,6 +7,7 @@ import {
   Eye,
   GraduationCap,
   Lock,
+  LogOut,
   MapPin,
   MessageCircle,
   Pencil,
@@ -38,6 +39,7 @@ interface ProfileViewProps {
   onHome: () => void;
   onCreate: () => void;
   onEdit: () => void;
+  onLogout?: () => void;
 }
 
 function PrivacyBadge({ isPublic }: { isPublic: boolean }) {
@@ -60,6 +62,7 @@ export function ProfileView({
   onHome,
   onCreate,
   onEdit,
+  onLogout,
 }: ProfileViewProps) {
   const [shareOpen, setShareOpen] = useState(false);
   const [shareMessage, setShareMessage] = useState('');
@@ -264,6 +267,14 @@ export function ProfileView({
               className="mt-3 h-12 rounded-2xl bg-[#ee573c] px-7 text-base font-black text-white hover:bg-[#d9462f]"
             >
               <Sparkles className="size-4" /> 创建我的 Profile
+            </Button>
+          </div>
+        ) : null}
+
+        {isOwner && onLogout ? (
+          <div className="mt-8 text-center">
+            <Button variant="ghost" onClick={onLogout} className="text-sm font-bold text-muted-foreground">
+              <LogOut className="size-4" /> 退出登录
             </Button>
           </div>
         ) : null}

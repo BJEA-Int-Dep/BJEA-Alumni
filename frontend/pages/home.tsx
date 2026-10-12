@@ -1,33 +1,34 @@
-import { ArrowUpRight, LogIn, LogOut, Sparkles, UserRound } from 'lucide-react';
+import { ArrowUpRight, LogIn, Sparkles, UserRound } from 'lucide-react';
 import { SchoolHeader } from '@/components/school-header';
 import { Button } from '@/components/ui/button';
+import { EmojiAvatar } from '@/features/avatar/emoji-avatar';
 import { TONE_CLASSES, type AlumniProfile } from '@/lib/alumni-data';
 
 interface HomeViewProps {
   profiles: AlumniProfile[];
   accountName?: string;
   hasProfile?: boolean;
-  isProfilePublic?: boolean;
   ownProfileId?: string;
+  ownProfile?: AlumniProfile;
   onSelectProfile: (profile: AlumniProfile) => void;
+  onOwnProfile: () => void;
   onRequestCreate: () => void;
   onLogin: () => void;
-  onLogout: () => void;
 }
 
 export function HomeView({
   profiles,
   accountName,
   hasProfile = false,
-  isProfilePublic = false,
   ownProfileId,
+  ownProfile,
   onSelectProfile,
+  onOwnProfile,
   onRequestCreate,
   onLogin,
-  onLogout,
 }: HomeViewProps) {
   return (
-    <main className="min-h-screen overflow-x-hidden bg-background pb-32 text-foreground">
+    <main className={`min-h-screen overflow-x-hidden bg-background text-foreground ${hasProfile ? 'pb-16' : 'pb-32'}`}>
       <SchoolHeader
         onHome={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
         right={
@@ -36,22 +37,23 @@ export function HomeView({
               内测中
             </span>
             {accountName ? (
-              <>
-                <span className="hidden items-center gap-1.5 text-xs font-black sm:inline-flex">
-                  <UserRound className="size-3.5" /> {accountName}
-                </span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={onLogout}
-                  className="rounded-xl font-black"
-                  aria-label="退出登录"
-                >
-                  <LogOut className="size-4" />
-                  <span className="hidden sm:inline">退出</span>
-                </Button>
-              </>
+              <button
+                type="button"
+                onClick={onOwnProfile}
+                className="grid size-10 place-items-center overflow-hidden rounded-full bg-[#fff0e7] ring-2 ring-[#ee573c]/30 transition hover:ring-[#ee573c] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#1680bd]/30"
+                aria-label={`查看我的 Profile（${accountName}）`}
+              >
+                {ownProfile ? (
+                  <EmojiAvatar
+                    imageUrl={ownProfile.avatarImageUrl}
+                    emoji={ownProfile.emoji}
+                    label={`${accountName} 的头像`}
+                    className="size-10 text-2xl [&>span[title]]:hidden"
+                  />
+                ) : (
+                  <UserRound className="size-5" aria-hidden="true" />
+                )}
+              </button>
             ) : (
               <Button
                 type="button"
@@ -163,34 +165,25 @@ export function HomeView({
         </div>
       </section>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-black/[0.06] bg-[#fffaf1]/92 px-4 pb-[calc(12px+env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-lg items-center gap-3">
-          <div className="hidden min-w-0 flex-1 sm:block">
-            <p className="text-sm font-black">
-              {hasProfile
-                ? isProfilePublic
-                  ? '你的角色卡已经加入校友墙'
-                  : '你的 Profile 已保存为私密资料'
-                : '校友墙上还差一个你'}
-            </p>
-            <p className="truncate text-xs text-muted-foreground">
-              {hasProfile
-                ? isProfilePublic
-                  ? '随时回来更新你的人生支线'
-                  : '目前仅你和学校老师可见'
-                : '大约 3 分钟，边回答边生成角色卡'}
-            </p>
+      {!hasProfile ? (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-black/[0.06] bg-[#fffaf1]/92 px-4 pb-[calc(12px+env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl">
+          <div className="mx-auto flex max-w-lg items-center gap-3">
+            <div className="hidden min-w-0 flex-1 sm:block">
+              <p className="text-sm font-black">校友墙上还差一个你</p>
+              <p className="truncate text-xs text-muted-foreground">
+                大约 3 分钟，边回答边生成角色卡
+              </p>
+            </div>
+            <Button
+              size="lg"
+              onClick={onRequestCreate}
+              className="h-[52px] flex-1 rounded-2xl bg-[#ee573c] px-5 text-base font-black text-white shadow-[0_8px_24px_rgba(238,87,60,0.3)] hover:bg-[#d9462f] sm:flex-none"
+            >
+              <Sparkles className="size-4" /> 创建我的 Profile
+            </Button>
           </div>
-          <Button
-            size="lg"
-            onClick={onRequestCreate}
-            className="h-[52px] flex-1 rounded-2xl bg-[#ee573c] px-5 text-base font-black text-white shadow-[0_8px_24px_rgba(238,87,60,0.3)] hover:bg-[#d9462f] sm:flex-none"
-          >
-            <Sparkles className="size-4" />
-            {hasProfile ? '查看或编辑我的 Profile' : '创建我的 Profile'}
-          </Button>
         </div>
-      </div>
+      ) : null}
     </main>
   );
 }
