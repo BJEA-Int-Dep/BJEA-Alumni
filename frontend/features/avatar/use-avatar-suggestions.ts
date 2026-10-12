@@ -79,7 +79,7 @@ export function useAvatarSuggestions(
         if (!cancelled)
           setError(
             controller.signal.aborted
-              ? '这次等待有点久，你可以重试或自己填写昵称继续。'
+              ? '这次等待有点久，你可以重试或先使用现有头像。'
               : cause instanceof Error
                 ? cause.message
                 : 'AI 灵感暂时不可用。',

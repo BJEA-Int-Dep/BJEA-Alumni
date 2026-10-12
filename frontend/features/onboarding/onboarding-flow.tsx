@@ -12,6 +12,7 @@ import { emptyAvatar, type AvatarState } from '../../../shared/avatar';
 import { answersFor, type DraftProfile } from './draft';
 import { ProfilePreview } from './profile-preview';
 import { Questions } from './questions';
+import { useNicknameSuggestions } from './use-nickname-suggestions';
 import { TOTAL_STEPS, useFlowNavigation } from './use-flow-navigation';
 
 interface OnboardingFlowProps {
@@ -24,7 +25,6 @@ interface OnboardingFlowProps {
 }
 
 const requiredFields: Array<[keyof DraftProfile, string]> = [
-  ['personalityId', '性格'],
   ['year', '高中毕业年份'],
   ['statusId', '现在的阶段'],
   ['place', '现在在哪里'],
@@ -52,9 +52,23 @@ export function OnboardingFlow({
     },
     [onDraftChange],
   );
-  const suggestions = useAvatarSuggestions(
+  const changeNicknames = useCallback(
+    (names: string[]) => {
+      onDraftChange((current) => ({
+        ...current,
+        avatar: { ...(current.avatar ?? emptyAvatar()), nicknameSuggestions: names },
+      }));
+    },
+    [onDraftChange],
+  );
+  const avatarSuggestions = useAvatarSuggestions(
     answersFor(draft),
     changeAvatar,
+    step === 6,
+  );
+  const nicknames = useNicknameSuggestions(
+    answersFor(draft),
+    changeNicknames,
     step === 6,
   );
   const progress = Math.round(((step + 1) / TOTAL_STEPS) * 100);
@@ -63,6 +77,18 @@ export function OnboardingFlow({
     onDraftChange((current) => ({ ...current, ...patch }));
   };
   const complete = () => {
+    if (draft.advice.includes('xxx')) {
+      setValidationError('请先把第六题模板中的 xxx 换成你的话，或清空后跳过');
+      return;
+    }
+    if (draft.place.includes('xxx') || draft.direction.includes('xxx')) {
+      setValidationError('请先把第四题模板中的 xxx 换成你的回答');
+      return;
+    }
+    if ((draft.personalityTraits?.length ?? 0) < 2 && !draft.personalityId) {
+      setValidationError('请先选择至少两项性格描述');
+      return;
+    }
     if (draft.statusId === 'other' && !draft.statusCustom.trim()) {
       setValidationError('请先补充：现在的状态');
       return;
@@ -113,7 +139,7 @@ export function OnboardingFlow({
               disabled={step === 0}
               onClick={() => navigateFlow(step - 1)}
               aria-label="上一题"
-              className="rounded-full"
+              className="rounded-full border-black/15 bg-white/50 hover:border-black/25"
             >
               <ArrowLeft className="size-5" />
             </Button>
@@ -123,7 +149,7 @@ export function OnboardingFlow({
               disabled={step === TOTAL_STEPS - 1}
               onClick={() => navigateFlow(step + 1)}
               aria-label="下一题"
-              className="rounded-full"
+              className="rounded-full border-black/15 bg-white/50 hover:border-black/25"
             >
               <ArrowRight className="size-5" />
             </Button>
@@ -139,9 +165,9 @@ export function OnboardingFlow({
               navigateFlow={navigateFlow}
               onComplete={complete}
               completing={completing}
-              aiLoading={suggestions.loading}
-              aiError={suggestions.error}
-              onAiRefresh={suggestions.refresh}
+              aiLoading={nicknames.loading}
+              aiError={nicknames.error}
+              onAiRefresh={nicknames.refresh}
             />
             {validationError || completionError ? (
               <p
@@ -158,9 +184,9 @@ export function OnboardingFlow({
             draft={draft}
             patchDraft={patchDraft}
             changeAvatar={changeAvatar}
-            loading={suggestions.loading}
-            error={suggestions.error}
-            onRefresh={suggestions.refresh}
+            loading={avatarSuggestions.loading}
+            error={avatarSuggestions.error}
+            onRefresh={avatarSuggestions.refresh}
           />
         </div>
       </div>

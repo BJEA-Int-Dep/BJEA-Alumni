@@ -118,8 +118,5 @@ export function buildSuggestions(lists: Suggestions): Suggestions {
         all.findIndex((other) => other.emoji === entry.emoji) === index,
     )
     .slice(0, 8);
-  return {
-    recommendations,
-    nicknameSuggestions: lists.nicknameSuggestions,
-  };
+  return { recommendations };
 }

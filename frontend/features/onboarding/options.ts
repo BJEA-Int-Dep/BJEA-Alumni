@@ -68,6 +68,17 @@ export const PERSONALITIES: PersonalityOption[] = [
   },
 ];
 
+export const PERSONALITY_TRAITS = [
+  { id: 'slow_burn', label: '慢热，但熟了很吵', note: '先观察，再加入' },
+  { id: 'action_first', label: '想到就做', note: '灵感来了先试试' },
+  { id: 'detail_spotter', label: '爱观察细节', note: '总能看见别人漏掉的' },
+  { id: 'wild_ideas', label: '常有奇怪脑洞', note: '脑内支线很多' },
+  { id: 'deep_diver', label: '容易沉浸一件事', note: '喜欢一路钻进去' },
+  { id: 'people_connector', label: '喜欢把大家聚起来', note: '一起做更有意思' },
+  { id: 'new_things', label: '总想试点新鲜的', note: '遇到未知会好奇' },
+  { id: 'careful_planner', label: '先想清楚再出发', note: '准备也很有乐趣' },
+] as const;
+
 export const STATUS_OPTIONS: Array<{
   id: StatusId;
   label: string;
@@ -93,33 +104,29 @@ export const STATUS_OPTIONS: Array<{
 ];
 
 export const PLACE_SUGGESTIONS: Record<StatusId, string[]> = {
-  university: ['北京的一所大学', '国内其他城市', '海外校园', '还在准备申请'],
-  postgrad: ['国内高校', '海外校园', '实验室', '一边工作一边读书'],
-  working: ['留在北京工作', '去了南方城市', '在海外工作', '远程工作中'],
-  gap: ['在旅行', '在准备申请', '在做个人项目', '先休息充电'],
-  independent: ['自己的小工作室', '三五人的创业团队', '独立创作中', '到处办公'],
-  other: ['留在北京', '国内其他城市', '在海外', '地点不固定'],
+  university: ['美国的xxx大学', '英国的xxx大学'],
+  postgrad: ['美国的xxx大学读研', '英国的xxx大学读研'],
+  working: ['在xxx城市工作', '在xxx国家工作', '远程工作，主要在xxx'],
+  gap: ['目前在xxx休息调整', '目前在xxx准备下一步'],
+  independent: ['在xxx城市做项目', '远程工作，最近在xxx'],
+  other: ['目前在xxx', '最近在xxx生活'],
 };
 
 export const DIRECTION_OPTIONS: Record<StatusId, string[]> = {
   university: [
-    '计算机 / 工程',
-    '艺术 / 设计',
-    '社科 / 人文',
-    '商科 / 经济',
-    '还没想明白',
+    '主修xxx专业',
+    '还没定专业，最近对xxx感兴趣',
+    '正在适应xxx的课程与生活',
   ],
-  postgrad: ['学术研究', '专业深造', '准备申请', '跨专业探索', '还没想明白'],
+  postgrad: ['在读xxx专业', '研究方向是xxx', '正在从xxx转向新的方向'],
   working: [
-    '科技 / 互联网',
-    '教育 / 公益',
-    '媒体 / 创意',
-    '金融 / 商业',
-    '和专业没什么关系',
+    '在xxx行业工作',
+    '目前负责xxx方向',
+    '正在从xxx转向新的领域',
   ],
-  gap: ['旅行与体验', '准备申请', '个人项目', '休息充电', '继续探索'],
-  independent: ['创业中', '独立创作', '自由职业', '小团队项目', '保密项目'],
-  other: ['准备考试', '照顾家人', '个人项目', '休息调整', '继续探索'],
+  gap: ['在准备申请xxx', '正在尝试xxx项目', '暂时休息，之后想探索xxx'],
+  independent: ['正在做xxx项目', '主要接xxx方向的工作', '和朋友一起做xxx'],
+  other: ['正在准备xxx', '目前在做xxx', '正在探索xxx方向'],
 };
 
 export const REFLECTION_OPTIONS = [
@@ -130,7 +137,7 @@ export const REFLECTION_OPTIONS = [
 ];
 
 export const ADVICE_SUGGESTIONS = [
-  '别急着给自己定型。',
-  '多做一点真实的小尝试。',
-  '睡够真的比熬夜有用。',
+  '刚到新环境时，我希望早点知道：xxx',
+  '申请或选校时，我希望有人提醒我：xxx',
+  '如果计划突然变了，我想告诉你：xxx',
 ];

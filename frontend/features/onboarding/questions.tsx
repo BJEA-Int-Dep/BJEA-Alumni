@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, Check, RotateCw } from 'lucide-react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { ArrowRight, Check, Plus, RotateCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -7,7 +7,7 @@ import type { DraftProfile } from './draft';
 import {
   ADVICE_SUGGESTIONS,
   DIRECTION_OPTIONS,
-  PERSONALITIES,
+  PERSONALITY_TRAITS,
   PLACE_SUGGESTIONS,
   REFLECTION_OPTIONS,
   STATUS_OPTIONS,
@@ -31,20 +31,25 @@ function Choice({
   label,
   note,
   selected = false,
+  disabled = false,
+  multiSelect = false,
   onClick,
 }: {
   emoji?: string;
   label: string;
   note?: string;
   selected?: boolean;
+  disabled?: boolean;
+  multiSelect?: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       aria-pressed={selected}
-      className={`group flex min-h-16 w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left shadow-[0_6px_22px_rgba(50,42,32,0.05)] transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#1680bd]/20 ${selected ? 'border-[#ee573c] bg-[#fff0e7] ring-2 ring-[#ee573c]/20' : 'border-black/[0.08] bg-white hover:border-[#1680bd]/35'}`}
+      className={`group flex min-h-16 w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left shadow-[0_6px_22px_rgba(50,42,32,0.05)] transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#1680bd]/20 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0 ${selected ? 'border-[#ee573c] bg-[#fff0e7] ring-2 ring-[#ee573c]/20' : 'border-black/[0.08] bg-white hover:border-[#1680bd]/35'}`}
     >
       {emoji ? (
         <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#f3f0e9] text-2xl">
@@ -59,7 +64,11 @@ function Choice({
           </span>
         ) : null}
       </span>
-      <ArrowRight className="size-4 shrink-0 text-muted-foreground transition group-hover:translate-x-1" />
+      {multiSelect ? (
+        selected ? <Check className="size-4 shrink-0 text-[#df5035]" /> : <Plus className="size-4 shrink-0 text-muted-foreground" />
+      ) : (
+        <ArrowRight className="size-4 shrink-0 text-muted-foreground transition group-hover:translate-x-1" />
+      )}
     </button>
   );
 }
@@ -75,6 +84,11 @@ function YearWheel({ value, onChange }: { value: string; onChange: (year: string
   const activeRef = useRef(value);
   const [active, setActive] = useState(value);
   onChangeRef.current = onChange;
+
+  useLayoutEffect(() => {
+    const index = Math.max(0, YEARS.indexOf(value));
+    if (ref.current) ref.current.scrollTop = index * 56;
+  }, []);
 
   useEffect(() => {
     if (value === activeRef.current) return;
@@ -133,7 +147,12 @@ function YearWheel({ value, onChange }: { value: string; onChange: (year: string
           <button
             key={year || 'empty'}
             type="button"
-            onClick={() => ref.current?.scrollTo({ top: index * 56, behavior: 'smooth' })}
+            onClick={() => {
+              activeRef.current = year;
+              setActive(year);
+              onChangeRef.current(year);
+              ref.current?.scrollTo({ top: index * 56, behavior: 'smooth' });
+            }}
             className={`flex h-14 w-full snap-center items-center justify-center text-xl transition ${active === year ? 'font-black text-foreground' : 'font-bold text-muted-foreground/45'}`}
           >
             {year || '选择年份'}
@@ -155,13 +174,40 @@ export function Questions({
   aiError = '',
   onAiRefresh,
 }: QuestionsProps) {
-  const choosePersonality = (id: string) => {
-    const option = PERSONALITIES.find((item) => item.id === id);
-    if (!option) return;
+  const placeInputRef = useRef<HTMLInputElement>(null);
+  const directionInputRef = useRef<HTMLInputElement>(null);
+  const adviceInputRef = useRef<HTMLTextAreaElement>(null);
+  const chooseTemplate = (field: 'place' | 'direction' | 'advice', template: string) => {
+    patchDraft(field === 'place' ? { place: template } : field === 'direction' ? { direction: template } : { advice: template });
+    requestAnimationFrame(() => {
+      const input = field === 'place' ? placeInputRef.current : field === 'direction' ? directionInputRef.current : adviceInputRef.current;
+      const start = template.indexOf('xxx');
+      input?.focus();
+      if (start >= 0) input?.setSelectionRange(start, start + 3);
+    });
+  };
+  const selectedTraits = draft.personalityTraits ?? [];
+  const personalitySummary = (traits: string[], custom: string) => {
+    const labels = traits
+      .map((id) => PERSONALITY_TRAITS.find((item) => item.id === id)?.label)
+      .filter(Boolean);
+    return labels.length
+      ? `朋友会说我：${labels.join('、')}${custom.trim() ? `；${custom.trim()}` : ''}。`
+      : custom.trim() || '回答几个问题，这张角色卡会慢慢长出来。';
+  };
+  const toggleTrait = (id: string) => {
+    if (!selectedTraits.includes(id) && selectedTraits.length >= 3) return;
+    const traits = selectedTraits.includes(id)
+      ? selectedTraits.filter((item) => item !== id)
+      : [...selectedTraits, id];
+    const custom = draft.personalityId && draft.personalityId !== 'custom'
+      ? ''
+      : draft.personalityCustom;
     patchDraft({
-      personalityId: option.id,
-      personalityCustom: option.summary,
-      summary: option.summary,
+      personalityId: '',
+      personalityTraits: traits,
+      personalityCustom: custom,
+      summary: personalitySummary(traits, custom),
     });
   };
   const chooseStatus = (statusId: StatusId) => {
@@ -171,9 +217,9 @@ export function Questions({
   const currentStatus = draft.statusId || 'university';
   const headings = [
     [
-      '第一题 · 凭直觉选',
-      '高中时期，你是哪种生物？',
-      '没有标准答案，也可以用自己的话说。',
+      '第一题 · 认识一下你',
+      '朋友会怎么形容你？',
+      '选 2–3 项最像你的描述，也可以补上一句自己的话。',
     ],
     [
       '第二题 · 一点坐标',
@@ -186,9 +232,9 @@ export function Questions({
       '选一个最接近的状态，不需要给自己下定义。',
     ],
     [
-      '第四题 · 两个坐标',
-      '现在在哪里、主要在做什么？',
-      '地点和方向都可以写得具体或模糊一点。',
+      '第四题 · 毕业后的坐标',
+      '现在在哪里，走在什么方向？',
+      '国家、城市、学校和近况，都可以按你愿意公开的程度填写。',
     ],
     [
       '第五题 · 一点真心话',
@@ -197,8 +243,8 @@ export function Questions({
     ],
     [
       '第六题 · 留张纸条',
-      '想对学弟学妹说什么？',
-      '可以写一句，也可以暂时留空。',
+      '哪件事，你希望有人早点告诉你？',
+      '从一个具体时刻写起，留给学弟学妹；不想写也可以跳过。',
     ],
     [
       '最后一步 · 角色卡署名',
@@ -223,41 +269,42 @@ export function Questions({
             {description}
           </p>
           <div className="mt-7 grid gap-3 sm:grid-cols-2">
-            {PERSONALITIES.map((option) => (
+            {PERSONALITY_TRAITS.map((option) => (
               <Choice
                 key={option.id}
-                emoji={option.emoji}
                 label={option.label}
                 note={option.note}
-                selected={
-                  draft.personalityId === option.id &&
-                  draft.personalityCustom === option.summary
-                }
-                onClick={() => choosePersonality(option.id)}
+                selected={selectedTraits.includes(option.id)}
+                disabled={selectedTraits.length >= 3 && !selectedTraits.includes(option.id)}
+                multiSelect
+                onClick={() => toggleTrait(option.id)}
               />
             ))}
           </div>
+          <p className="mt-3 text-xs font-bold text-muted-foreground">
+            已选 {selectedTraits.length} / 3 项（至少选 2 项）
+          </p>
           <div className="mt-5 rounded-2xl border border-dashed border-black/15 bg-white/55 p-4">
             <label htmlFor="custom-personality" className="text-sm font-black">
-              我自己说
+              还想补充一句？
             </label>
             <Input
               id="custom-personality"
               value={draft.personalityCustom}
               onChange={(event) =>
                 patchDraft({
-                  personalityId: 'custom',
+                  personalityId: '',
                   personalityCustom: event.target.value,
-                  summary: event.target.value,
+                  summary: personalitySummary(selectedTraits, event.target.value),
                 })
               }
-              placeholder="例如：一只正在学会游泳的企鹅"
+              placeholder="例如：熟了以后其实很爱讲冷笑话"
               maxLength={80}
               className="mt-3 h-12 rounded-xl border-black/10 bg-white"
             />
             <Button
               onClick={next}
-              disabled={!draft.personalityCustom.trim()}
+              disabled={selectedTraits.length < 2 && !draft.personalityId}
               className="mt-3 rounded-xl bg-[#24282c] font-black text-white"
             >
               下一题 <ArrowRight className="size-4" />
@@ -343,13 +390,14 @@ export function Questions({
             className="mt-7 block text-xs font-black text-muted-foreground"
             htmlFor="place"
           >
-            现在在哪里
+            现在在哪里 / 哪所学校
           </label>
           <Input
             id="place"
+            ref={placeInputRef}
             value={draft.place}
             onChange={(event) => patchDraft({ place: event.target.value })}
-            placeholder="城市、学校、工作室，或者一个大概"
+            placeholder="例如：美国的某大学、国内的某大学，或暂不公开"
             className="mt-2 h-12 rounded-xl border-black/10 bg-white"
           />{' '}
           <div className="mt-3 flex flex-wrap gap-2">
@@ -357,24 +405,28 @@ export function Questions({
               <button
                 key={item}
                 type="button"
-                onClick={() => patchDraft({ place: item })}
+                onClick={() => chooseTemplate('place', item)}
                 className="rounded-full border border-black/10 bg-white px-3 py-1.5 text-xs font-bold"
               >
                 {item}
               </button>
             ))}
           </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            点模板后替换 xxx；其他国家、国内学校或不想公开，也可以直接填写。
+          </p>
           <label
             className="mt-6 block text-xs font-black text-muted-foreground"
             htmlFor="direction"
           >
-            主要在做什么方向
+            现在学什么 / 在做什么
           </label>
           <Input
             id="direction"
+            ref={directionInputRef}
             value={draft.direction}
             onChange={(event) => patchDraft({ direction: event.target.value })}
-            placeholder="专业、行业、项目或正在探索的方向"
+            placeholder="专业、工作方向，或正在休息调整"
             className="mt-2 h-12 rounded-xl border-black/10 bg-white"
           />
           <div className="mt-3 flex flex-wrap gap-2">
@@ -382,7 +434,7 @@ export function Questions({
               <button
                 key={item}
                 type="button"
-                onClick={() => patchDraft({ direction: item })}
+                onClick={() => chooseTemplate('direction', item)}
                 className="rounded-full border border-black/10 bg-white px-3 py-1.5 text-xs font-bold"
               >
                 {item}
@@ -391,7 +443,7 @@ export function Questions({
           </div>
           <Button
             onClick={next}
-            disabled={!draft.place.trim() || !draft.direction.trim()}
+            disabled={!draft.place.trim() || !draft.direction.trim() || draft.place.includes('xxx') || draft.direction.includes('xxx')}
             className="mt-8 h-12 rounded-2xl bg-[#24282c] px-7 font-black text-white"
           >
             下一题 <ArrowRight className="size-4" />
@@ -449,10 +501,11 @@ export function Questions({
             {description}
           </p>
           <Textarea
+            ref={adviceInputRef}
             aria-label="给学弟学妹的话"
             value={draft.advice}
             onChange={(event) => patchDraft({ advice: event.target.value })}
-            placeholder="写给后来的人…（可以留空）"
+            placeholder="例如：刚到新学校时，我希望早点知道……（可以留空）"
             maxLength={500}
             className="mt-8 min-h-36 rounded-2xl border-black/10 bg-white"
           />
@@ -461,15 +514,19 @@ export function Questions({
               <button
                 key={item}
                 type="button"
-                onClick={() => patchDraft({ advice: item })}
+                onClick={() => chooseTemplate('advice', item)}
                 className="rounded-full border border-black/10 bg-white px-3 py-1.5 text-xs font-bold"
               >
                 {item}
               </button>
             ))}
           </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            选一句开头，把 xxx 换成你自己的经历；也可以直接写或跳过。
+          </p>
           <Button
             onClick={next}
+            disabled={draft.advice.includes('xxx')}
             className="mt-8 h-12 rounded-2xl bg-[#24282c] px-7 font-black text-white"
           >
             最后一步 <ArrowRight className="size-4" />
@@ -501,7 +558,10 @@ export function Questions({
               role="alert"
               className="mt-6 rounded-xl bg-[#fff0dc] p-3 text-xs font-bold leading-5 text-[#885421]"
             >
-              {aiError} 你也可以自己填写昵称继续。
+              {aiError} 你也可以自己填写昵称继续。{' '}
+              <button type="button" onClick={onAiRefresh} className="underline underline-offset-2">
+                重试
+              </button>
             </p>
           ) : null}
           {draft.avatar?.nicknameSuggestions?.length ? (

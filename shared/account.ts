@@ -47,6 +47,7 @@ const avatarStateSchema = z.object({
 export const profileDraftSchema = z.object({
   nickname: z.string().max(32),
   personalityId: z.string().max(40),
+  personalityTraits: z.array(z.string().max(32)).max(3).optional(),
   personalityCustom: z.string().max(180),
   emoji: z.string().max(32),
   tone: z.enum([
@@ -98,6 +99,7 @@ export const defaultAccountPreferences = (): AccountPreferences => ({
 
 export function canPublishProfile(draft: PersistedProfileDraft) {
   const hasPublicAnswer = [
+    draft.personalityTraits?.length ? draft.personalityTraits.join(',') : '',
     draft.personalityCustom,
     draft.statusId,
     draft.statusCustom,

@@ -6,10 +6,13 @@ const candidateSchema = z.object({
 });
 export const suggestionsSchema = z.object({
   recommendations: z.array(candidateSchema).min(3).max(8),
-  nicknameSuggestions: z.array(z.string().min(1).max(32)).min(3).max(5),
+});
+export const nicknameSuggestionsSchema = z.object({
+  nicknameSuggestions: z.array(z.string().min(2).max(24)).min(3).max(5),
 });
 export type Candidate = z.infer<typeof candidateSchema>;
 export type Suggestions = z.infer<typeof suggestionsSchema>;
+export type NicknameSuggestions = z.infer<typeof nicknameSuggestionsSchema>;
 
 const selectionSchema = z.object({
   first: z.string().max(32),
@@ -34,6 +37,7 @@ export const suggestionRequestSchema = z
   })
   .strict();
 export type SuggestionRequest = z.infer<typeof suggestionRequestSchema>;
+export const nicknameSuggestionRequestSchema = suggestionRequestSchema;
 
 export interface AvatarState {
   recommendations: Candidate[];
@@ -116,6 +120,5 @@ export function mergeSuggestions(
   return {
     ...current,
     recommendations,
-    nicknameSuggestions: incoming.nicknameSuggestions,
   };
 }

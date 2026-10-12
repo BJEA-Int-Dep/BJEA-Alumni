@@ -4,11 +4,12 @@ import {
   type AvatarState,
 } from '../../../shared/avatar';
 import type { AlumniProfile, Tone } from '@/lib/alumni-data';
-import { PERSONALITIES, STATUS_OPTIONS, type StatusId } from './options';
+import { PERSONALITIES, PERSONALITY_TRAITS, STATUS_OPTIONS, type StatusId } from './options';
 
 export interface DraftProfile {
   nickname: string;
   personalityId: string;
+  personalityTraits?: string[];
   personalityCustom: string;
   emoji: string;
   tone: Tone;
@@ -27,6 +28,7 @@ export function createDefaultDraft(): DraftProfile {
   return {
     nickname: '',
     personalityId: '',
+    personalityTraits: [],
     personalityCustom: '',
     emoji: '✨',
     tone: 'graphite',
@@ -68,13 +70,17 @@ export function draftToProfile(draft: DraftProfile): AlumniProfile {
 }
 
 export function answersFor(draft: DraftProfile) {
+  const traits = (draft.personalityTraits ?? [])
+    .map((id) => PERSONALITY_TRAITS.find((item) => item.id === id)?.label)
+    .filter(Boolean);
   const personality = PERSONALITIES.find(
     (item) => item.id === draft.personalityId,
   );
   return {
-    personality:
-      draft.personalityCustom ||
-      (personality ? `${personality.label}：${personality.note}` : ''),
+    personality: traits.length
+      ? [...traits, draft.personalityCustom.trim()].filter(Boolean).join('、')
+      : draft.personalityCustom ||
+        (personality ? `${personality.label}：${personality.note}` : ''),
     nickname: draft.nickname,
     year: draft.year,
     status: draft.statusId === 'other'

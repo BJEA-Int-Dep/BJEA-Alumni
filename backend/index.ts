@@ -18,7 +18,12 @@ import {
   realNameSchema,
   verificationCodeSchema,
 } from '../shared/account.ts';
-import { suggestionRequestSchema, type Suggestions } from '../shared/avatar.ts';
+import {
+  nicknameSuggestionRequestSchema,
+  suggestionRequestSchema,
+  type NicknameSuggestions,
+  type Suggestions,
+} from '../shared/avatar.ts';
 import {
   createSession,
   currentUser,
@@ -33,6 +38,7 @@ import {
 } from './auth.ts';
 import { openDatabase, type AppDatabase } from './database.ts';
 import { suggest } from './openrouter.ts';
+import { suggestNicknames } from './nicknames.ts';
 import { ApiError } from './errors.ts';
 import { decodeEmoji, imageBytes } from './images.ts';
 import { compatibleEmojis, randomPair, supported } from './kitchen.ts';
@@ -91,6 +97,7 @@ interface ProfileRow {
 export function createApiServer(
   providers: {
     suggest?: typeof suggest;
+    suggestNicknames?: typeof suggestNicknames;
     image?: typeof imageBytes;
     database?: AppDatabase;
   } = {},
@@ -101,8 +108,14 @@ export function createApiServer(
     string,
     { promise: Promise<Suggestions>; expires: number }
   >();
+  const nicknameCache = new Map<
+    string,
+    { promise: Promise<NicknameSuggestions>; expires: number }
+  >();
   let active = 0;
   let daily = { date: '', count: 0 };
+  let activeNicknames = 0;
+  let dailyNicknames = { date: '', count: 0 };
 
   function json(res: ServerResponse, status: number, value: unknown) {
     res.writeHead(status, {
@@ -516,6 +529,38 @@ export function createApiServer(
           'Content-Length': image.bytes.length,
         });
         return res.end(image.bytes);
+      }
+      if (req.method === 'POST' && url.pathname === '/api/nicknames/suggestions') {
+        sameOrigin(req);
+        const parsed = nicknameSuggestionRequestSchema.safeParse(await readBody(req));
+        if (!parsed.success)
+          throw new ApiError(400, '填写内容格式不正确或过长。');
+        const input = parsed.data;
+        const ip = clientIp(req);
+        const key = createHash('sha256')
+          .update(ip + JSON.stringify({ ...input, answers: { ...input.answers, nickname: '' } }))
+          .digest('hex');
+        for (const [id, item] of nicknameCache)
+          if (item.expires < Date.now()) nicknameCache.delete(id);
+        if (!nicknameCache.has(key)) {
+          limit(`nicknames:${ip}`, 30);
+          const today = new Date().toISOString().slice(0, 10);
+          if (dailyNicknames.date !== today)
+            dailyNicknames = { date: today, count: 0 };
+          if (dailyNicknames.count >= Number(process.env.NICKNAME_DAILY_LIMIT || 300))
+            throw new ApiError(429, '今天的昵称推荐额度已用完，你可以自己填写。');
+          if (activeNicknames >= 3)
+            throw new ApiError(503, '昵称推荐正在忙，请稍后重试。');
+          dailyNicknames.count++;
+          activeNicknames++;
+          const promise = (providers.suggestNicknames ?? suggestNicknames)(input)
+            .finally(() => { activeNicknames--; });
+          if (nicknameCache.size >= 300)
+            nicknameCache.delete(nicknameCache.keys().next().value!);
+          nicknameCache.set(key, { promise, expires: Date.now() + 10 * 60000 });
+          void promise.catch(() => nicknameCache.delete(key));
+        }
+        return json(res, 200, await nicknameCache.get(key)!.promise);
       }
       if (req.method !== 'POST' || url.pathname !== '/api/avatar/suggestions')
         throw new ApiError(404, '接口不存在。');
