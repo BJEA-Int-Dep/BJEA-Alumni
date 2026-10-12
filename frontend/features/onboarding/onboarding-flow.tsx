@@ -7,12 +7,12 @@ import {
 import { ArrowLeft, ArrowRight, House } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { useAvatarSuggestions } from '@/features/avatar/use-avatar-suggestions';
-import { emptyAvatar, type AvatarState } from '../../../shared/avatar';
+import { emptyAvatar } from '../../../shared/avatar';
 import { answersFor, type DraftProfile } from './draft';
 import { ProfilePreview } from './profile-preview';
 import { Questions } from './questions';
 import { useNicknameSuggestions } from './use-nickname-suggestions';
+import { useAvatarConcepts } from './use-avatar-concepts';
 import { TOTAL_STEPS, useFlowNavigation } from './use-flow-navigation';
 
 interface OnboardingFlowProps {
@@ -43,15 +43,6 @@ export function OnboardingFlow({
 }: OnboardingFlowProps) {
   const { step, navigateFlow } = useFlowNavigation();
   const [validationError, setValidationError] = useState('');
-  const changeAvatar = useCallback(
-    (change: (current: AvatarState) => AvatarState) => {
-      onDraftChange((current) => ({
-        ...current,
-        avatar: change(current.avatar ?? emptyAvatar()),
-      }));
-    },
-    [onDraftChange],
-  );
   const changeNicknames = useCallback(
     (names: string[]) => {
       onDraftChange((current) => ({
@@ -61,15 +52,12 @@ export function OnboardingFlow({
     },
     [onDraftChange],
   );
-  const avatarSuggestions = useAvatarSuggestions(
-    answersFor(draft),
-    changeAvatar,
-    step === 6,
-  );
+  const subjectConcepts = useAvatarConcepts('subject', answersFor(draft), '', step === 6);
+  const detailConcepts = useAvatarConcepts('detail', answersFor(draft), draft.avatar?.recipe?.subject ?? '', step === 7 && !!draft.avatar?.recipe?.subject);
   const nicknames = useNicknameSuggestions(
     answersFor(draft),
     changeNicknames,
-    step === 6,
+    step === 8,
   );
   const progress = Math.round(((step + 1) / TOTAL_STEPS) * 100);
   const patchDraft = (patch: Partial<DraftProfile>) => {
@@ -91,6 +79,10 @@ export function OnboardingFlow({
     }
     if (draft.statusId === 'other' && !draft.statusCustom.trim()) {
       setValidationError('请先补充：现在的状态');
+      return;
+    }
+    if (!draft.avatar?.recipe?.subject.trim()) {
+      setValidationError('请先选一个头像主体');
       return;
     }
     const missing = requiredFields.find(
@@ -168,6 +160,7 @@ export function OnboardingFlow({
               aiLoading={nicknames.loading}
               aiError={nicknames.error}
               onAiRefresh={nicknames.refresh}
+              concept={step === 6 ? subjectConcepts : step === 7 ? detailConcepts : undefined}
             />
             {validationError || completionError ? (
               <p
@@ -180,14 +173,7 @@ export function OnboardingFlow({
           </div>
         </section>
         <div className="order-1 lg:order-2">
-          <ProfilePreview
-            draft={draft}
-            patchDraft={patchDraft}
-            changeAvatar={changeAvatar}
-            loading={avatarSuggestions.loading}
-            error={avatarSuggestions.error}
-            onRefresh={avatarSuggestions.refresh}
-          />
+          <ProfilePreview draft={draft} patchDraft={patchDraft} />
         </div>
       </div>
     </main>

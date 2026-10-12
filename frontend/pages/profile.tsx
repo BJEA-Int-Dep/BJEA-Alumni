@@ -17,15 +17,12 @@ import {
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { SchoolHeader } from '@/components/school-header';
 import { EmojiAvatar } from '@/features/avatar/emoji-avatar';
+import { GeneratedAvatarPanel } from '@/features/avatar/generated-avatar-panel';
+import { SharePosterDialog } from '@/features/share/share-poster-dialog';
+import type { PublicProfilePayload } from '../../shared/account';
+import type { AvatarRecipe } from '../../shared/avatar';
 import { TONE_CLASSES, type AlumniProfile } from '@/lib/alumni-data';
 
 type VisibilityField = 'year' | 'place' | 'direction' | 'reflection' | 'advice';
@@ -44,6 +41,10 @@ interface ProfileViewProps {
   onCreate: () => void;
   onEdit: () => void;
   onLogout?: () => void;
+  shareProfileUrl?: string;
+  avatarRecipe?: AvatarRecipe;
+  adoptedAvatarId?: string;
+  onAdoptAvatar?: (profile: PublicProfilePayload) => void;
 }
 
 function PrivacyBadge({ isPublic }: { isPublic: boolean }) {
@@ -71,9 +72,12 @@ export function ProfileView({
   onCreate,
   onEdit,
   onLogout,
+  shareProfileUrl,
+  avatarRecipe,
+  adoptedAvatarId,
+  onAdoptAvatar,
 }: ProfileViewProps) {
   const [shareOpen, setShareOpen] = useState(false);
-  const [shareMessage, setShareMessage] = useState('');
   const visibility: VisibilityState = {
     year: true,
     place: true,
@@ -126,13 +130,20 @@ export function ProfileView({
       />
 
       <div className="mx-auto max-w-4xl px-4 pt-5 sm:px-8 sm:pt-8">
-        <Button
-          variant="ghost"
-          onClick={onBack}
-          className="mb-4 -ml-2 h-10 rounded-xl px-3 font-bold text-muted-foreground hover:bg-black/[0.05] hover:text-foreground"
-        >
-          <ArrowLeft className="size-4" /> 返回校友墙
-        </Button>
+        <div className="mb-4 flex items-center justify-between gap-2">
+          <Button
+            variant="ghost"
+            onClick={onBack}
+            className="-ml-2 h-10 rounded-xl px-3 font-bold text-muted-foreground hover:bg-black/[0.05] hover:text-foreground"
+          >
+            <ArrowLeft className="size-4" /> 返回校友墙
+          </Button>
+          {!isOwner && shareProfileUrl ? (
+            <Button variant="outline" onClick={() => setShareOpen(true)} className="h-10 rounded-xl border-black/10 bg-white px-4 font-black">
+              <Share2 className="size-4" /> 分享
+            </Button>
+          ) : null}
+        </div>
 
         {profile.example ? (
           <p className="mb-4 rounded-xl bg-[#fff0dc] px-4 py-2 text-xs font-bold text-[#885421]">
@@ -152,6 +163,10 @@ export function ProfileView({
               </p>
             </div>
           </div>
+        ) : null}
+
+        {isOwner ? (
+          avatarRecipe?.subject && onAdoptAvatar ? <GeneratedAvatarPanel recipe={avatarRecipe} adoptedId={adoptedAvatarId} onAdopt={onAdoptAvatar} /> : null
         ) : null}
 
         {isOwner ? (
@@ -319,85 +334,12 @@ export function ProfileView({
         ) : null}
       </div>
 
-      <Dialog
+      <SharePosterDialog
         open={shareOpen}
-        onOpenChange={(open) => {
-          setShareOpen(open);
-          if (!open) setShareMessage('');
-        }}
-      >
-        <DialogContent className="max-h-[92vh] max-w-lg overflow-y-auto rounded-[26px] bg-[#f1eee6] p-5 sm:p-6">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-black tracking-tight">
-              分享海报预览
-            </DialogTitle>
-            <DialogDescription>
-              正式版会生成独立图片与二维码；这里先验证分享时的感觉。
-            </DialogDescription>
-          </DialogHeader>
-          <div className="mx-auto w-full max-w-[330px] overflow-hidden rounded-[28px] bg-[#24282c] text-white shadow-[0_25px_60px_rgba(0,0,0,0.2)]">
-            <div
-              className={`relative flex aspect-[5/4] items-center justify-center overflow-hidden bg-gradient-to-br ${TONE_CLASSES[profile.tone]}`}
-            >
-              <span className="absolute left-4 top-4 rounded-full bg-white/88 px-2.5 py-1 text-[10px] font-black text-black/65">
-                CLASS OF &apos;{profile.year.slice(-2)}
-              </span>
-              <EmojiAvatar
-                imageUrl={profile.avatarImageUrl}
-                emoji={profile.emoji}
-                label={profile.avatarLabel || '分享卡头像'}
-                className="size-44 select-none text-[8rem] drop-shadow-[0_16px_16px_rgba(0,0,0,0.2)]"
-              />
-            </div>
-            <div className="p-6">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/50">
-                    My alumni card
-                  </p>
-                  <p className="mt-1 text-3xl font-black tracking-tight">
-                    {profile.nickname}
-                  </p>
-                </div>
-                <img
-                  src="/school-logo.png"
-                  alt=""
-                  className="h-11 w-16 rounded-lg bg-white object-contain p-1"
-                />
-              </div>
-              <p className="mt-4 text-sm font-bold leading-6 text-white/78">
-                “{profile.summary}”
-              </p>
-              <div className="mt-6 flex items-end justify-between border-t border-white/10 pt-4">
-                <div>
-                  <p className="text-xs font-black">亦中校友宇宙</p>
-                  <p className="mt-0.5 text-[10px] font-medium text-white/45">
-                    每个人，一条不一样的路
-                  </p>
-                </div>
-                <span className="rounded-full bg-[#ee573c] px-3 py-1.5 text-[10px] font-black">
-                  创建你的 Profile
-                </span>
-              </div>
-            </div>
-          </div>
-          {shareMessage ? (
-            <p className="rounded-xl bg-[#edf5e6] px-4 py-3 text-center text-xs font-bold text-[#3f7a3c]">
-              {shareMessage}
-            </p>
-          ) : null}
-          <Button
-            onClick={() => {
-              setShareMessage(
-                'Mock 完成：正式版将在这里保存图片或调起系统分享。',
-              );
-            }}
-            className="h-11 w-full rounded-xl bg-[#24282c] font-black text-white hover:bg-black"
-          >
-            <Share2 className="size-4" /> 模拟分享
-          </Button>
-        </DialogContent>
-      </Dialog>
+        onOpenChange={setShareOpen}
+        profile={profile}
+        profileUrl={shareProfileUrl}
+      />
     </main>
   );
 }

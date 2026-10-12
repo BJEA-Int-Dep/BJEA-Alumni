@@ -3,6 +3,7 @@ import { ArrowRight, Check, Plus, RotateCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { emptyAvatar } from '../../../shared/avatar';
 import type { DraftProfile } from './draft';
 import {
   ADVICE_SUGGESTIONS,
@@ -24,6 +25,7 @@ interface QuestionsProps {
   aiLoading?: boolean;
   aiError?: string;
   onAiRefresh?: () => void;
+  concept?: { options: string[]; loading: boolean; error: string; refresh: () => void };
 }
 
 function Choice({
@@ -173,6 +175,7 @@ export function Questions({
   aiLoading = false,
   aiError = '',
   onAiRefresh,
+  concept,
 }: QuestionsProps) {
   const placeInputRef = useRef<HTMLInputElement>(null);
   const directionInputRef = useRef<HTMLInputElement>(null);
@@ -245,6 +248,16 @@ export function Questions({
       '第六题 · 留张纸条',
       '哪件事，你希望有人早点告诉你？',
       '从一个具体时刻写起，留给学弟学妹；不想写也可以跳过。',
+    ],
+    [
+      '第七题 · 头像的主角',
+      '如果把你画成一个角色，会是什么？',
+      'AI 会根据你的回答给出几个主体灵感。可以选一个，也可以写自己的想法。',
+    ],
+    [
+      '第八题 · 加一点细节',
+      '这个角色在做什么？',
+      '给它加一个配件或动作；喜欢简单一点，也可以留空。',
     ],
     [
       '最后一步 · 角色卡署名',
@@ -529,10 +542,58 @@ export function Questions({
             disabled={draft.advice.includes('xxx')}
             className="mt-8 h-12 rounded-2xl bg-[#24282c] px-7 font-black text-white"
           >
-            最后一步 <ArrowRight className="size-4" />
+            下一题 <ArrowRight className="size-4" />
           </Button>
         </div>
       );
+    case 6:
+    case 7: {
+      const subjectStage = step === 6;
+      const recipe = draft.avatar?.recipe ?? { subject: '', detail: '' };
+      const value = subjectStage ? recipe.subject : recipe.detail;
+      const field = subjectStage ? 'subject' : 'detail';
+      const update = (nextValue: string) => patchDraft({
+        avatar: {
+          ...(draft.avatar ?? emptyAvatar()),
+          recipe: { ...recipe, [field]: nextValue },
+        },
+      });
+      return (
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-[#4f8d42]">{eyebrow}</p>
+          <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">{title}</h1>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">{description}</p>
+          {concept?.loading ? <p role="status" className="mt-6 text-xs font-bold text-muted-foreground">正在想一些有趣的选择…</p> : null}
+          {concept?.error ? <p role="alert" className="mt-6 text-xs font-bold text-[#885421]">{concept.error} 可以直接自己填写。</p> : null}
+          {concept?.options.length ? (
+            <div className="mt-7">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs font-black text-muted-foreground">AI 给你的灵感</p>
+                <Button type="button" variant="ghost" onClick={concept.refresh} disabled={concept.loading} className="h-8 rounded-full px-2.5 text-xs font-black">
+                  <RotateCw className={`size-3.5 ${concept.loading ? 'animate-spin' : ''}`} />重新推荐
+                </Button>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {concept.options.map((option) => (
+                  <button key={option} type="button" onClick={() => update(option)} className={`rounded-full border px-3 py-2 text-sm font-black ${value === option ? 'border-[#ee573c] bg-[#fff0e7] text-[#b8432e]' : 'border-[#1680bd]/20 bg-[#eaf5fa] text-[#17648e]'}`}>{option}</button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          <Input
+            aria-label={subjectStage ? '头像主体' : '头像配件或动作'}
+            value={value}
+            onChange={(event) => update(event.target.value)}
+            placeholder={subjectStage ? '例如：一只戴眼镜的小狐狸、一株仙人掌' : '例如：抱着一本书、背着小行囊'}
+            maxLength={subjectStage ? 80 : 120}
+            className="mt-7 h-14 rounded-2xl border-black/10 bg-white text-base font-bold"
+          />
+          <Button onClick={next} disabled={subjectStage && !value.trim()} className="mt-8 h-12 rounded-2xl bg-[#24282c] px-7 font-black text-white">
+            {subjectStage ? '下一题' : '最后一步'} <ArrowRight className="size-4" />
+          </Button>
+        </div>
+      );
+    }
     default:
       return (
         <div>

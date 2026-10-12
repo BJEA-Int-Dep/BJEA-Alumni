@@ -282,6 +282,16 @@ export default function AlumniApp() {
     }
   };
 
+  const adoptAvatar = (profile: PublicProfilePayload) => {
+    const updated = profile.draft;
+    setDraft(updated);
+    setSavedDraft(updated);
+    if (authUser?.preferences.publicProfile) {
+      const visible = profileFromPayload(profile);
+      setProfiles((current) => [visible, ...current.filter((item) => item.id !== visible.id)]);
+    }
+  };
+
   const openProfile = (profile: AlumniProfile) => {
     if (authUser && profile.id === `member-${authUser.id}` && savedDraft) {
       setDraft(savedDraft);
@@ -347,8 +357,18 @@ export default function AlumniApp() {
         onBack={goHome}
         onHome={goHome}
         onCreate={requestCreate}
-        onEdit={() => navigate('/create?step=7', 'create')}
+        onEdit={() => navigate(draft.avatar?.recipe?.subject ? '/create?step=9' : '/create?step=7', 'create')}
         onLogout={() => void logout()}
+        shareProfileUrl={
+          view === 'detail' && selectedProfile
+            ? `${window.location.origin}/alumni/${encodeURIComponent(selectedProfile.id)}`
+            : authUser?.preferences.publicProfile
+              ? `${window.location.origin}/alumni/member-${authUser.id}`
+              : undefined
+        }
+        avatarRecipe={view === 'complete' ? draft.avatar?.recipe : undefined}
+        adoptedAvatarId={view === 'complete' ? draft.avatar?.generatedAssetId : undefined}
+        onAdoptAvatar={adoptAvatar}
       />
     );
   }

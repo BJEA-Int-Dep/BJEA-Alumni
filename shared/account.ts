@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { avatarRecipeSchema, generatedAvatarIdSchema } from './avatar.ts';
 
 export const nicknameSchema = z
   .string()
@@ -42,6 +43,8 @@ const avatarStateSchema = z.object({
     first: z.string().max(32),
     second: z.string().max(32),
   }),
+  recipe: avatarRecipeSchema.optional(),
+  generatedAssetId: generatedAvatarIdSchema.optional(),
 });
 
 export const profileDraftSchema = z.object({

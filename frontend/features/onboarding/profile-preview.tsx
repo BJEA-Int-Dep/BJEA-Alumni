@@ -1,43 +1,24 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Pencil } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { AvatarPicker } from '@/features/avatar/avatar-picker';
 import { EmojiAvatar } from '@/features/avatar/emoji-avatar';
 import { TONE_CLASSES } from '@/lib/alumni-data';
-import { emptyAvatar, selectedPair } from '../../../shared/avatar';
+import { generatedAvatarPath, selectedPair } from '../../../shared/avatar';
 import type { DraftProfile } from './draft';
 import { STATUS_OPTIONS } from './options';
 
 interface Props {
   draft: DraftProfile;
   patchDraft: (patch: Partial<DraftProfile>) => void;
-  changeAvatar: Parameters<typeof AvatarPicker>[0]['onChange'];
-  loading: boolean;
-  error: string;
-  onRefresh?: () => void;
 }
 
 export function ProfilePreview({
   draft,
   patchDraft,
-  changeAvatar,
-  loading,
-  error,
-  onRefresh,
 }: Props) {
   const [open, setOpen] = useState(false);
-  const [emojiOpen, setEmojiOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const pair = selectedPair(draft.avatar);
-  const avatar = draft.avatar ?? emptyAvatar();
 
   useEffect(() => {
     if (!open) return;
@@ -60,22 +41,15 @@ export function ProfilePreview({
             <span className="absolute left-2 top-2 rounded-full bg-white/85 px-2 py-1 text-[9px] font-black text-black/65 shadow-sm lg:left-4 lg:top-4 lg:px-2.5 lg:text-[10px]">
               {draft.year ? `高中毕业 ${draft.year}` : '高中毕业 ··'}
             </span>
-            <button
-              type="button"
-              onClick={() => setEmojiOpen(true)}
-              aria-label="编辑头像"
-              className="relative rounded-full transition hover:scale-105 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/70"
-            >
+            <div className="relative">
               <EmojiAvatar
-                imageUrl={pair?.imageUrl}
+                imageUrl={draft.avatar?.generatedAssetId ? generatedAvatarPath(draft.avatar.generatedAssetId) : pair?.imageUrl}
                 emoji={draft.avatar?.selection.first || draft.emoji}
                 label="当前角色头像"
                 className="size-24 select-none text-6xl drop-shadow-[0_14px_14px_rgba(0,0,0,0.18)] sm:size-28 sm:text-7xl lg:size-48 lg:text-[8rem]"
               />
-              <span className="absolute bottom-1 right-1 grid size-8 place-items-center rounded-full bg-white text-foreground shadow-md ring-1 ring-black/10 lg:bottom-2 lg:right-2">
-                <Pencil className="size-3.5" />
-              </span>
-            </button>
+              {!draft.avatar?.generatedAssetId && !pair ? <span className="absolute inset-x-0 bottom-1 text-center text-[10px] font-bold text-white/85">保存后生成头像</span> : null}
+            </div>
           </div>
           <div className="relative min-w-0 flex-1 p-4 pr-12 sm:p-5 sm:pr-14 lg:p-6 lg:pr-16">
             <p className="text-xs font-black uppercase tracking-[0.14em] text-[#e15036]">亦中校友角色卡</p>
@@ -139,21 +113,6 @@ export function ProfilePreview({
           </div>
         ) : null}
       </div>
-      <Dialog open={emojiOpen} onOpenChange={setEmojiOpen}>
-        <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] min-w-0 max-w-3xl overflow-x-hidden overflow-y-auto rounded-[28px] bg-[#f4f1e9] p-4 [scrollbar-width:none] sm:p-7 [&::-webkit-scrollbar]:hidden">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-black">调一张你的头像</DialogTitle>
-            <DialogDescription>挑两枚 emoji，组合会实时显示在角色卡上。</DialogDescription>
-          </DialogHeader>
-          <AvatarPicker
-            avatar={avatar}
-            onChange={changeAvatar}
-            loading={loading}
-            error={error}
-            onRefresh={onRefresh}
-          />
-        </DialogContent>
-      </Dialog>
     </aside>
   );
 }

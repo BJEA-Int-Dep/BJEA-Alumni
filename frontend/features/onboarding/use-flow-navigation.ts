@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-export const TOTAL_STEPS = 7;
+export const TOTAL_STEPS = 9;
 
 interface FlowLocation {
   step: number;

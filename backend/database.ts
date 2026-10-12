@@ -55,6 +55,27 @@ export function openDatabase(path = process.env.DATABASE_PATH || '.data/bjea.sql
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS example_avatar_assets (
+      id TEXT PRIMARY KEY,
+      example_id TEXT NOT NULL REFERENCES example_profiles(id) ON DELETE CASCADE,
+      recipe_json TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS example_avatar_assets_example
+      ON example_avatar_assets(example_id, created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS avatar_jobs (
+      id TEXT PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      recipe_json TEXT NOT NULL,
+      status TEXT NOT NULL CHECK(status IN ('queued', 'running', 'succeeded', 'failed')),
+      error TEXT NOT NULL DEFAULT '',
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS avatar_jobs_user_created
+      ON avatar_jobs(user_id, created_at DESC);
   `);
   const userColumns = db
     .prepare('PRAGMA table_info(users)')

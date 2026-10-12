@@ -1,5 +1,6 @@
 import {
   emptyAvatar,
+  generatedAvatarPath,
   selectedPair,
   type AvatarState,
 } from '../../../shared/avatar';
@@ -30,7 +31,7 @@ export function createDefaultDraft(): DraftProfile {
     personalityId: '',
     personalityTraits: [],
     personalityCustom: '',
-    emoji: '✨',
+    emoji: '',
     tone: 'graphite',
     summary: '回答几个问题，这张角色卡会慢慢长出来。',
     avatar: emptyAvatar(),
@@ -54,10 +55,14 @@ export function draftToProfile(draft: DraftProfile): AlumniProfile {
     nickname: draft.nickname.trim() || '神秘校友',
     year: draft.year || '20??',
     emoji: draft.avatar?.selection.first || draft.emoji,
-    avatarImageUrl: selectedPair(draft.avatar)?.imageUrl,
-    avatarLabel: draft.avatar?.selection.first
-      ? `${draft.avatar.selection.first} + ${draft.avatar.selection.second}`
-      : undefined,
+    avatarImageUrl: draft.avatar?.generatedAssetId
+      ? generatedAvatarPath(draft.avatar.generatedAssetId)
+      : selectedPair(draft.avatar)?.imageUrl,
+    avatarLabel: draft.avatar?.generatedAssetId
+      ? draft.avatar.recipe?.subject
+      : draft.avatar?.selection.first
+        ? `${draft.avatar.selection.first} + ${draft.avatar.selection.second}`
+        : undefined,
     summary: draft.summary,
     field: `${draft.direction || '探索中'} · ${status}`,
     status,

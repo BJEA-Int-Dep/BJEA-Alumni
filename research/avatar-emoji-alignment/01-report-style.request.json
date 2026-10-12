@@ -1,0 +1,14 @@
+{
+  "id": "01-report-style",
+  "label": "报告风格：哑光 2.5D 贴纸",
+  "requested_at": "2026-10-12T21:50:59.499Z",
+  "endpoint": "https://openrouter.ai/api/v1/images",
+  "body": {
+    "model": "openai/gpt-image-2.5-sunburst",
+    "prompt": "Create exactly one original fictional non-human avatar for a school alumni profile. Subject: one friendly small apricot fox holding one small simplified muted-coral laptop, with a curious smile. The laptop is the only accessory. Center a complete, compact full-body silhouette within the middle 76% of a square canvas, suitable for a circular avatar and recognizable at 32 pixels. Use a genuinely transparent alpha background: no painted background, gradient, vignette, halo, aura, drop shadow, floor, scenery, or checkerboard. No lettering, logo, watermark, extra character, floating decoration, or additional prop. This is a friendly illustrated icon, not a photo or cinematic character render.\n\nSoft matte 2.5D rounded emoji-sticker illustration matching a cohesive avatar set. Warm charcoal outline of consistent medium thickness around the silhouette and major shapes. Large rounded head and compact body, simple dot eyes and a tiny curved mouth, restrained pastel colors, very soft upper-left lighting. Use smooth color regions and only subtle cel-like shading. Absolutely no individual fur strands, pores, fabric grain, shiny plastic, glossy highlights, realistic material textures, dramatic lighting, depth of field, or intricate small details.",
+    "n": 1,
+    "aspect_ratio": "1:1",
+    "quality": "medium",
+    "background": "transparent"
+  }
+}

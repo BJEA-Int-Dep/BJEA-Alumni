@@ -1,0 +1,11 @@
+{
+  "status": 200,
+  "elapsed_ms": 15285,
+  "cost": 0.014625,
+  "image": {
+    "bytes": 961914,
+    "width": 1024,
+    "height": 1024,
+    "sha256": "9735514c8e8df3b81c8a5ba57554ec02480de4a6387c588391f32927c08a4567"
+  }
+}

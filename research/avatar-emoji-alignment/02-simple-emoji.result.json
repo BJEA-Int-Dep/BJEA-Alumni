@@ -1,0 +1,13 @@
+{
+  "id": "02-simple-emoji",
+  "completed_at": "2026-10-12T21:51:53.393Z",
+  "status": 200,
+  "elapsed_ms": 17413,
+  "cost": 0.01431,
+  "image": {
+    "bytes": 908006,
+    "width": 1024,
+    "height": 1024,
+    "sha256": "417054152e5076475ae3706c1b9ce317766242418e07d8f29e05a834ba3ca03c"
+  }
+}

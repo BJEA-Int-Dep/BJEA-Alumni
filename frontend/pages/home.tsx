@@ -130,12 +130,12 @@ export function HomeView({
                       示例
                     </span>
                   ) : null}
-                  <span
-                    className="select-none text-[clamp(3.5rem,14vw,6.5rem)] drop-shadow-[0_12px_12px_rgba(0,0,0,0.16)] transition duration-300 group-hover:scale-110 group-hover:-rotate-3"
-                    aria-hidden="true"
-                  >
-                    {person.emoji}
-                  </span>
+                  <EmojiAvatar
+                    imageUrl={person.avatarImageUrl}
+                    emoji={person.emoji}
+                    label={`${person.nickname} 的头像`}
+                    className="size-24 select-none text-[clamp(3.5rem,14vw,6.5rem)] drop-shadow-[0_12px_12px_rgba(0,0,0,0.16)] transition duration-300 group-hover:scale-110 group-hover:-rotate-3 sm:size-28"
+                  />
                   <span className="absolute bottom-3 right-3 grid size-8 place-items-center rounded-full bg-white text-black shadow-md transition group-hover:rotate-45">
                     <ArrowUpRight className="size-4" />
                   </span>

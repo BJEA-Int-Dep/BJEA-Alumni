@@ -19,6 +19,8 @@ import {
   verificationCodeSchema,
 } from '../shared/account.ts';
 import {
+  avatarConceptRequestSchema,
+  generatedAvatarIdSchema,
   nicknameSuggestionRequestSchema,
   suggestionRequestSchema,
   type NicknameSuggestions,
@@ -39,6 +41,8 @@ import {
 import { openDatabase, type AppDatabase } from './database.ts';
 import { suggest } from './openrouter.ts';
 import { suggestNicknames } from './nicknames.ts';
+import { suggestAvatarConcepts } from './avatar-concepts.ts';
+import { createGeneratedAvatarService } from './generated-avatar.ts';
 import { ApiError } from './errors.ts';
 import { decodeEmoji, imageBytes } from './images.ts';
 import { compatibleEmojis, randomPair, supported } from './kitchen.ts';
@@ -103,6 +107,7 @@ export function createApiServer(
   } = {},
 ) {
   const database = providers.database ?? openDatabase();
+  const generatedAvatars = createGeneratedAvatarService(database);
   const requests = new Map<string, { count: number; expires: number }>();
   const cache = new Map<
     string,
@@ -112,10 +117,13 @@ export function createApiServer(
     string,
     { promise: Promise<NicknameSuggestions>; expires: number }
   >();
+  const conceptCache = new Map<string, { promise: ReturnType<typeof suggestAvatarConcepts>; expires: number }>();
   let active = 0;
   let daily = { date: '', count: 0 };
   let activeNicknames = 0;
   let dailyNicknames = { date: '', count: 0 };
+  let activeConcepts = 0;
+  let dailyConcepts = { date: '', count: 0 };
 
   function json(res: ServerResponse, status: number, value: unknown) {
     res.writeHead(status, {
@@ -496,6 +504,91 @@ export function createApiServer(
           profile: { id: `member-${user.id}`, draft },
           published: Boolean(user.public_profile),
         });
+      }
+      if (req.method === 'POST' && url.pathname === '/api/avatar/concepts') {
+        sameOrigin(req);
+        const input = parsedBody(avatarConceptRequestSchema, await readBody(req));
+        const ip = clientIp(req);
+        const key = createHash('sha256').update(ip + JSON.stringify(input)).digest('hex');
+        for (const [id, item] of conceptCache)
+          if (item.expires < Date.now()) conceptCache.delete(id);
+        if (!conceptCache.has(key)) {
+          limit(`avatar-concepts:${ip}`, 30);
+          const today = new Date().toISOString().slice(0, 10);
+          if (dailyConcepts.date !== today) dailyConcepts = { date: today, count: 0 };
+          if (dailyConcepts.count >= Number(process.env.AVATAR_CONCEPT_DAILY_LIMIT || 300))
+            throw new ApiError(429, '今天的头像灵感额度已用完，你可以自己填写。');
+          if (activeConcepts >= 3)
+            throw new ApiError(503, '头像灵感正在忙，请稍后重试。');
+          dailyConcepts.count++;
+          activeConcepts++;
+          const promise = suggestAvatarConcepts(input).finally(() => { activeConcepts--; });
+          if (conceptCache.size >= 300)
+            conceptCache.delete(conceptCache.keys().next().value!);
+          conceptCache.set(key, { promise, expires: Date.now() + 10 * 60000 });
+          void promise.catch(() => conceptCache.delete(key));
+        }
+        return json(res, 200, await conceptCache.get(key)!.promise);
+      }
+      if (req.method === 'POST' && url.pathname === '/api/avatar/generations') {
+        sameOrigin(req);
+        limit(`avatar-generate:${clientIp(req)}`, 30);
+        const user = requireUser(database, req);
+        const input = parsedBody(z.object({ refresh: z.boolean().default(false) }).strict(), await readBody(req));
+        const draft = savedDraft(user.id);
+        if (!draft?.avatar?.recipe?.subject.trim())
+          throw new ApiError(400, '请先保存头像主体，再生成头像。');
+        return json(res, 202, { job: generatedAvatars.start(user.id, draft.avatar.recipe, draft.tone, input.refresh) });
+      }
+      const generationMatch = /^\/api\/avatar\/generations\/([0-9a-f-]{36})(\/adopt)?$/.exec(url.pathname);
+      if (generationMatch && generatedAvatarIdSchema.safeParse(generationMatch[1]).success) {
+        const user = requireUser(database, req);
+        if (req.method === 'GET' && !generationMatch[2])
+          return json(res, 200, { job: generatedAvatars.status(user.id, generationMatch[1]) });
+        if (req.method === 'POST' && generationMatch[2]) {
+          sameOrigin(req);
+          generatedAvatars.succeededJob(user.id, generationMatch[1]);
+          const draft = savedDraft(user.id);
+          if (!draft) throw new ApiError(404, '找不到你的 Profile。');
+          const updated = { ...draft, avatar: { ...draft.avatar!, generatedAssetId: generationMatch[1] } };
+          database.prepare('UPDATE profiles SET draft_json = ?, updated_at = ? WHERE user_id = ?')
+            .run(JSON.stringify(updated), Date.now(), user.id);
+          return json(res, 200, { profile: { id: `member-${user.id}`, draft: updated } });
+        }
+      }
+      if (req.method === 'GET' && url.pathname.startsWith('/api/avatar/generated/')) {
+        const match = /^\/api\/avatar\/generated\/([0-9a-f-]{36})\.png$/.exec(url.pathname);
+        if (!match || !generatedAvatarIdSchema.safeParse(match[1]).success)
+          throw new ApiError(404, '头像图片不存在。');
+        const job = generatedAvatars.findJob(match[1]);
+        if (job) {
+          if (job.status !== 'succeeded') throw new ApiError(404, '头像图片不存在。');
+          const owner = currentUser(database, req)?.id === job.user_id;
+          const adopted = savedDraft(job.user_id)?.avatar?.generatedAssetId === job.id;
+          const published = database.prepare("SELECT 1 FROM users WHERE id = ? AND account_status = 'active' AND public_profile = 1").get(job.user_id);
+          if (!owner && !(adopted && published)) throw new ApiError(404, '头像图片不存在。');
+        } else {
+          const example = database.prepare(
+            `SELECT example_profiles.draft_json FROM example_avatar_assets
+             JOIN example_profiles ON example_profiles.id = example_avatar_assets.example_id
+             WHERE example_avatar_assets.id = ?`,
+          ).get(match[1]) as { draft_json: string } | undefined;
+          if (!example) throw new ApiError(404, '头像图片不存在。');
+          let adopted = false;
+          try {
+            const draft = profileDraftSchema.parse(JSON.parse(example.draft_json));
+            adopted = draft.avatar?.generatedAssetId === match[1];
+          } catch { /* Invalid example profiles are not served. */ }
+          if (!adopted) throw new ApiError(404, '头像图片不存在。');
+        }
+        const bytes = await generatedAvatars.image(match[1]);
+        res.writeHead(200, {
+          'Content-Type': 'image/png',
+          'Content-Length': bytes.length,
+          'Cache-Control': 'private, no-store',
+          'X-Content-Type-Options': 'nosniff',
+        });
+        return res.end(bytes);
       }
       if (req.method === 'GET' && url.pathname === '/api/avatar/emojis') {
         const withEmoji = url.searchParams.get('with');

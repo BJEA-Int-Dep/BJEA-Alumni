@@ -15,7 +15,7 @@ export function EmojiAvatar({
   const [loaded, setLoaded] = useState('');
   const [failed, setFailed] = useState('');
   // A same-origin path is the only accepted image source, including restored history state.
-  const src = imageUrl?.startsWith('/api/avatar/images/')
+  const src = imageUrl?.startsWith('/api/avatar/images/') || imageUrl?.startsWith('/api/avatar/generated/')
     ? imageUrl
     : undefined;
   useEffect(() => {
@@ -48,6 +48,7 @@ export function EmojiAvatar({
           onError={() => setFailed(src)}
           className={cn(
             'absolute inset-0 size-full object-contain transition-opacity duration-300',
+            src.startsWith('/api/avatar/generated/') && 'p-[5%]',
             loaded === src ? 'opacity-100' : 'opacity-0',
           )}
         />

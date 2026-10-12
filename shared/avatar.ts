@@ -19,7 +19,7 @@ const selectionSchema = z.object({
   second: z.string().max(32),
 });
 export type Selection = z.infer<typeof selectionSchema>;
-const answersSchema = z.object({
+export const answersSchema = z.object({
   personality: z.string().max(180),
   nickname: z.string().max(32),
   year: z.string().max(8).optional(),
@@ -38,11 +38,34 @@ export const suggestionRequestSchema = z
   .strict();
 export type SuggestionRequest = z.infer<typeof suggestionRequestSchema>;
 export const nicknameSuggestionRequestSchema = suggestionRequestSchema;
+export const avatarConceptRequestSchema = z.object({
+  stage: z.enum(['subject', 'detail']),
+  answers: answersSchema,
+  subject: z.string().trim().max(80).optional(),
+  refresh: z.number().int().min(0).max(1000000).default(0),
+}).strict();
+export type AvatarConceptRequest = z.infer<typeof avatarConceptRequestSchema>;
+export const avatarConceptResponseSchema = z.object({
+  options: z.array(z.string().trim().min(2).max(120)).min(3).max(5),
+});
+export type AvatarConceptResponse = z.infer<typeof avatarConceptResponseSchema>;
+
+export const avatarRecipeSchema = z.object({
+  subject: z.string().trim().max(80),
+  detail: z.string().trim().max(120),
+});
+export type AvatarRecipe = z.infer<typeof avatarRecipeSchema>;
+export const generatedAvatarIdSchema = z.string().uuid();
+export function generatedAvatarPath(id: string) {
+  return `/api/avatar/generated/${id}.png`;
+}
 
 export interface AvatarState {
   recommendations: Candidate[];
   nicknameSuggestions: string[];
   selection: Selection;
+  recipe?: AvatarRecipe;
+  generatedAssetId?: string;
 }
 
 export function emptyAvatar(): AvatarState {

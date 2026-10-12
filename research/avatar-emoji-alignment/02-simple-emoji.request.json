@@ -1,0 +1,14 @@
+{
+  "id": "02-simple-emoji",
+  "label": "更简洁的 emoji 图标：柔和 2.5D",
+  "requested_at": "2026-10-12T21:51:35.975Z",
+  "endpoint": "https://openrouter.ai/api/v1/images",
+  "body": {
+    "model": "openai/gpt-image-2.5-sunburst",
+    "prompt": "Create exactly one original fictional non-human avatar for a school alumni profile. Subject: one friendly small apricot fox holding one small simplified muted-coral laptop, with a curious smile. The laptop is the only accessory. Center a complete, compact full-body silhouette within the middle 76% of a square canvas, suitable for a circular avatar and recognizable at 32 pixels. Use a genuinely transparent alpha background: no painted background, gradient, vignette, halo, aura, drop shadow, floor, scenery, or checkerboard. No lettering, logo, watermark, extra character, floating decoration, or additional prop. This is a friendly illustrated icon, not a photo or cinematic character render.\n\nMinimal modern emoji icon illustration, with broad smooth rounded shapes and a friendly oversized face. Three or four clean color areas, simple dark dot eyes, tiny mouth, and one readable laptop shape. Gentle restrained 2.5D shading with no visible texture; nearly flat at thumbnail size. No dark contour outline, no fur strands, no realistic materials, no glossy specular lighting, no tiny details, and no cinematic rendering.",
+    "n": 1,
+    "aspect_ratio": "1:1",
+    "quality": "medium",
+    "background": "transparent"
+  }
+}
