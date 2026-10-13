@@ -48,6 +48,15 @@ export function GeneratedAvatarPanel({
     return () => window.clearInterval(timer);
   }, [job?.id, job?.status]);
 
+  useEffect(() => {
+    if (job?.status !== 'succeeded' || adoptedId) return;
+    void apiRequest<{ draft: PublicProfilePayload['draft'] }>('/api/auth/me')
+      .then((result) => {
+        if (result.draft?.avatar?.generatedAssetId === job.id)
+          onAdopt({ id: 'my-profile', draft: result.draft });
+      }).catch(() => { /* The image is still saved; the next page load will show it. */ });
+  }, [job?.id, job?.status, adoptedId, onAdopt]);
+
   const retry = async () => {
     setBusy(true);
     setError('');
@@ -85,7 +94,7 @@ export function GeneratedAvatarPanel({
             <img src={job.imageUrl} alt={`生成的${recipe.subject}头像预览`} className="size-full object-contain" />
           </div>
           <div className="flex flex-wrap gap-2">
-            {adoptedId === job.id ? <span className="self-center text-sm font-black text-[#3f7a3c]">已采用这张头像</span> : <Button onClick={() => void adopt()} disabled={busy} className="rounded-xl bg-[#ee573c] font-black text-white">采用这张</Button>}
+            {adoptedId === job.id ? <span className="self-center text-sm font-black text-[#3f7a3c]">已自动采用这张头像</span> : <Button onClick={() => void adopt()} disabled={busy} className="rounded-xl bg-[#ee573c] font-black text-white">采用这张</Button>}
             <Button variant="outline" onClick={() => void retry()} disabled={busy} className="rounded-xl bg-white font-bold"><RotateCw className="size-4" /> 再生成</Button>
           </div>
         </div>

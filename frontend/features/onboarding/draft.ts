@@ -4,7 +4,8 @@ import {
   selectedPair,
   type AvatarState,
 } from '../../../shared/avatar';
-import type { AlumniProfile, Tone } from '@/lib/alumni-data';
+import { nicknameSchema } from '../../../shared/account';
+import { TONES, type AlumniProfile, type Tone } from '@/lib/alumni-data';
 import { PERSONALITIES, PERSONALITY_TRAITS, STATUS_OPTIONS, type StatusId } from './options';
 
 export interface DraftProfile {
@@ -32,8 +33,8 @@ export function createDefaultDraft(): DraftProfile {
     personalityTraits: [],
     personalityCustom: '',
     emoji: '',
-    tone: 'graphite',
-    summary: '回答几个问题，这张角色卡会慢慢长出来。',
+    tone: TONES[Math.floor(Math.random() * TONES.length)],
+    summary: '',
     avatar: emptyAvatar(),
     year: '',
     statusId: '',
@@ -45,10 +46,19 @@ export function createDefaultDraft(): DraftProfile {
   };
 }
 
+export function validateDraftForSave(draft: DraftProfile): string {
+  const nickname = nicknameSchema.safeParse(draft.nickname);
+  if (!nickname.success) return nickname.error.issues[0]?.message || '请填写昵称。';
+  if (!/^20\d{2}$/.test(draft.year)) return '请选择高中毕业年份。';
+  if ([draft.place, draft.direction, draft.advice].some((value) => value.includes('xxx')))
+    return '请把模板中的 xxx 换成自己的话，或清空该项。';
+  return '';
+}
+
 export function draftToProfile(draft: DraftProfile): AlumniProfile {
   const status = draft.statusId === 'other'
-    ? draft.statusCustom || '其他状态'
-    : STATUS_OPTIONS.find((option) => option.id === draft.statusId)?.label ?? '还在探索';
+    ? draft.statusCustom
+    : STATUS_OPTIONS.find((option) => option.id === draft.statusId)?.label ?? '';
 
   return {
     id: 'my-profile',
@@ -64,10 +74,10 @@ export function draftToProfile(draft: DraftProfile): AlumniProfile {
         ? `${draft.avatar.selection.first} + ${draft.avatar.selection.second}`
         : undefined,
     summary: draft.summary,
-    field: `${draft.direction || '探索中'} · ${status}`,
+    field: [draft.direction, status].filter(Boolean).join(' · '),
     status,
-    place: draft.place || '暂时没有公开',
-    direction: draft.direction || '仍在探索',
+    place: draft.place,
+    direction: draft.direction,
     reflection: draft.reflection,
     advice: draft.advice.trim(),
     tone: draft.tone,

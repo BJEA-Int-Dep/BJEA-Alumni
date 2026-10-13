@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { ArrowRight, GraduationCap } from 'lucide-react';
 import type {
   AccountUser,
   AuthPayload,
@@ -7,6 +6,7 @@ import type {
   PublicProfilePayload,
 } from '../shared/account';
 
+import { AuthDialog, type AuthMode } from '@/features/auth/auth-dialog';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -15,11 +15,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { AuthDialog, type AuthMode } from '@/features/auth/auth-dialog';
 import { OnboardingFlow } from '@/features/onboarding/onboarding-flow';
 import {
   createDefaultDraft,
   draftToProfile,
+  validateDraftForSave,
   type DraftProfile,
 } from '@/features/onboarding/draft';
 import { apiRequest } from '@/lib/api';
@@ -63,38 +63,55 @@ function profileFromPayload(payload: PublicProfilePayload): AlumniProfile {
   return { ...draftToProfile(payload.draft), id: payload.id, example: payload.example };
 }
 
+function editSnapshot(draft: DraftProfile) {
+  const avatar = draft.avatar
+    ? { ...draft.avatar, nicknameSuggestions: undefined }
+    : undefined;
+  return JSON.stringify({ ...draft, avatar });
+}
+
+interface ExitDestination {
+  path: string;
+  route: AppRoute;
+}
+
 export default function AlumniApp() {
   const [initialRoute] = useState(readRoute);
   const [view, setView] = useState<View>(initialRoute.view);
   const [selectedProfile, setSelectedProfile] = useState<AlumniProfile | null>(null);
   const [profiles, setProfiles] = useState<AlumniProfile[]>([]);
+  const [limitedProfiles, setLimitedProfiles] = useState(false);
   const [authReady, setAuthReady] = useState(false);
   const [authUser, setAuthUser] = useState<AccountUser | null>(null);
   const [savedDraft, setSavedDraft] = useState<DraftProfile | null>(null);
-  const [identityOpen, setIdentityOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<AuthMode>('login');
-  const [saveAfterAuth, setSaveAfterAuth] = useState(false);
+  const [createAfterAuth, setCreateAfterAuth] = useState(false);
   const [draft, setDraft] = useState<DraftProfile>(createDefaultDraft);
+  const [editBaseline, setEditBaseline] = useState(() => editSnapshot(draft));
+  const [pendingExit, setPendingExit] = useState<ExitDestination | null>(null);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSaveError, setProfileSaveError] = useState('');
   const [visibilitySaving, setVisibilitySaving] = useState(false);
   const [visibilityError, setVisibilityError] = useState('');
+  const hasUnsavedChanges = view === 'create' && editSnapshot(draft) !== editBaseline;
 
   useEffect(() => {
     let cancelled = false;
     void Promise.all([
       apiRequest<MePayload>('/api/auth/me'),
-      apiRequest<{ profiles: PublicProfilePayload[] }>('/api/profiles'),
+      apiRequest<{ profiles: PublicProfilePayload[]; limited?: boolean }>('/api/profiles'),
     ])
       .then(([me, publicProfiles]) => {
         if (cancelled) return;
         const allProfiles = publicProfiles.profiles.map(profileFromPayload);
         setProfiles(allProfiles);
+        setLimitedProfiles(Boolean(publicProfiles.limited));
         setAuthUser(me.user);
         if (me.draft) {
           setSavedDraft(me.draft);
           setDraft(me.draft);
+          setEditBaseline(editSnapshot(me.draft));
         }
 
         const route = readRoute();
@@ -113,6 +130,12 @@ export default function AlumniApp() {
         } else if (route.view === 'complete' && !me.draft) {
           window.history.replaceState({ alumniApp: true }, '', '/create');
           setView('create');
+        } else if (route.view === 'create' && !me.user) {
+          window.history.replaceState({ alumniApp: true }, '', '/');
+          setView('home');
+          setAuthMode('register');
+          setCreateAfterAuth(true);
+          setAuthOpen(true);
         }
       })
       .catch(() => {
@@ -145,9 +168,14 @@ export default function AlumniApp() {
 
     const handlePopState = () => {
       const route = readRoute();
-      setIdentityOpen(false);
+      if (view === 'create' && route.view !== 'create' && hasUnsavedChanges) {
+        const path = currentPath();
+        window.history.pushState({ alumniApp: true }, '', '/create');
+        setPendingExit({ path, route });
+        return;
+      }
       setAuthOpen(false);
-      if (route.view === 'complete' && !authUser) {
+      if ((route.view === 'complete' || route.view === 'create') && !authUser) {
         window.history.replaceState({ alumniApp: true }, '', '/');
         setView('home');
         return;
@@ -166,7 +194,17 @@ export default function AlumniApp() {
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [authUser, initialRoute, profiles, savedDraft]);
+  }, [authUser, hasUnsavedChanges, initialRoute, profiles, savedDraft, view]);
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warnBeforeUnload);
+    return () => window.removeEventListener('beforeunload', warnBeforeUnload);
+  }, [hasUnsavedChanges]);
 
   const navigate = (path: string, nextView: View) => {
     window.history.pushState({ alumniApp: true }, '', path);
@@ -176,10 +214,29 @@ export default function AlumniApp() {
 
   const goHome = () => navigate('/', 'home');
 
+  const requestExit = () => {
+    if (hasUnsavedChanges) setPendingExit({ path: '/', route: { view: 'home' } });
+    else goHome();
+  };
+
+  const leaveEditor = (destination: ExitDestination, saved: boolean) => {
+    setPendingExit(null);
+    setProfileSaveError('');
+    if (!saved) setDraft(savedDraft ?? createDefaultDraft());
+    if (destination.route.view === 'detail') {
+      const profile = profiles.find((item) => item.id === destination.route.profileId);
+      if (profile) setSelectedProfile(profile);
+      else destination = { path: '/', route: { view: 'home' } };
+    }
+    window.history.replaceState({ alumniApp: true }, '', destination.path);
+    setView(destination.route.view);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const beginProfile = (profileDraft = savedDraft ?? createDefaultDraft()) => {
     setDraft(profileDraft);
+    setEditBaseline(editSnapshot(profileDraft));
     setProfileSaveError('');
-    setIdentityOpen(false);
     navigate('/create', 'create');
   };
 
@@ -188,26 +245,27 @@ export default function AlumniApp() {
       beginProfile();
       return;
     }
-    if (currentPath() !== '/') navigate('/', 'home');
-    setIdentityOpen(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    openAuth('register', true);
   };
 
   const openAuth = (mode: AuthMode, shouldContinue = false) => {
-    setIdentityOpen(false);
     setAuthMode(mode);
-    setSaveAfterAuth(shouldContinue);
+    setCreateAfterAuth(shouldContinue);
     setAuthOpen(true);
   };
 
   const authenticated = (payload: AuthPayload) => {
-    const shouldSave = saveAfterAuth;
+    const shouldCreate = createAfterAuth;
     setAuthUser(payload.user);
+    setLimitedProfiles(false);
+    void apiRequest<{ profiles: PublicProfilePayload[] }>('/api/profiles')
+      .then((result) => setProfiles(result.profiles.map(profileFromPayload)))
+      .catch(() => {});
     setSavedDraft(payload.draft);
-    if (!shouldSave && payload.draft) setDraft(payload.draft);
+    if (payload.draft) setDraft(payload.draft);
     setAuthOpen(false);
-    setSaveAfterAuth(false);
-    if (shouldSave) void saveProfile();
+    setCreateAfterAuth(false);
+    if (shouldCreate) beginProfile(payload.draft ?? createDefaultDraft());
   };
 
   const logout = async () => {
@@ -215,13 +273,24 @@ export default function AlumniApp() {
       await apiRequest<{ ok: true }>('/api/auth/logout', { method: 'POST' });
     } finally {
       setAuthUser(null);
+      setLimitedProfiles(true);
+      void apiRequest<{ profiles: PublicProfilePayload[] }>('/api/profiles')
+        .then((result) => setProfiles(result.profiles.map(profileFromPayload)))
+        .catch(() => {});
       setSavedDraft(null);
-      setDraft(createDefaultDraft());
+      const freshDraft = createDefaultDraft();
+      setDraft(freshDraft);
+      setEditBaseline(editSnapshot(freshDraft));
       if (view === 'create' || view === 'complete') goHome();
     }
   };
 
-  const saveProfile = async () => {
+  const saveProfile = async (): Promise<boolean> => {
+    const validationError = validateDraftForSave(draft);
+    if (validationError) {
+      setProfileSaveError(validationError);
+      return false;
+    }
     setProfileSaving(true);
     setProfileSaveError('');
     try {
@@ -238,23 +307,31 @@ export default function AlumniApp() {
           ? [profile, ...current.filter((item) => item.id !== profile.id)]
           : current.filter((item) => item.id !== profile.id),
       );
-      setSavedDraft(draft);
+      setSavedDraft(result.profile.draft);
+      setDraft(result.profile.draft);
+      setEditBaseline(editSnapshot(result.profile.draft));
       setAuthUser((current) =>
         current ? { ...current, hasProfile: true } : current,
       );
-      navigate('/profile/my-profile', 'complete');
+      return true;
     } catch (cause) {
       setProfileSaveError(
         cause instanceof Error ? cause.message : '角色卡保存失败，请重试。',
       );
+      return false;
     } finally {
       setProfileSaving(false);
     }
   };
 
-  const completeProfile = () => {
-    if (authUser) return saveProfile();
-    openAuth('register', true);
+  const completeProfile = async () => {
+    if (await saveProfile()) navigate('/profile/my-profile', 'complete');
+  };
+
+  const saveAndExit = async () => {
+    if (!pendingExit) return;
+    const destination = pendingExit;
+    if (await saveProfile()) leaveEditor(destination, true);
   };
 
   const updateProfileVisibility = async (publicProfile: boolean) => {
@@ -322,10 +399,9 @@ export default function AlumniApp() {
     <AuthDialog
       open={authOpen}
       initialMode={authMode}
-      publishProfileAfterRegister={saveAfterAuth}
       onOpenChange={setAuthOpen}
       onAuthenticated={authenticated}
-      onCreateProfile={() => beginProfile(createDefaultDraft())}
+      onCreateProfile={() => openAuth('register', true)}
     />
   );
 
@@ -335,11 +411,25 @@ export default function AlumniApp() {
         <OnboardingFlow
           draft={draft}
           onDraftChange={setDraft}
-          onExit={goHome}
+          onExit={requestExit}
           onComplete={completeProfile}
           completing={profileSaving}
           completionError={profileSaveError}
         />
+        <Dialog open={Boolean(pendingExit)} onOpenChange={(open) => { if (!open && !profileSaving) setPendingExit(null); }}>
+          <DialogContent className="rounded-[24px] bg-[#fffaf1] p-6" showCloseButton={false}>
+            <DialogHeader>
+              <DialogTitle className="text-xl font-black">保存刚才的修改吗？</DialogTitle>
+              <DialogDescription>你修改了 Profile，离开前可以保存。</DialogDescription>
+            </DialogHeader>
+            {profileSaveError ? <p role="alert" className="rounded-xl bg-[#fff0dc] p-3 text-sm font-bold text-[#885421]">{profileSaveError}</p> : null}
+            <div className="mt-2 grid gap-2">
+              <Button onClick={() => void saveAndExit()} disabled={profileSaving} className="rounded-xl bg-[#ee573c] font-bold text-white">{profileSaving ? '正在保存…' : '保存并离开'}</Button>
+              <Button variant="outline" onClick={() => pendingExit && leaveEditor(pendingExit, false)} disabled={profileSaving} className="rounded-xl bg-white font-bold">不保存</Button>
+              <Button variant="ghost" onClick={() => setPendingExit(null)} disabled={profileSaving} className="rounded-xl font-bold">继续编辑</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
         {authLayer}
       </>
     );
@@ -347,9 +437,11 @@ export default function AlumniApp() {
 
   if ((view === 'detail' && selectedProfile) || (view === 'complete' && authUser)) {
     return (
+      <>
       <ProfileView
         profile={view === 'complete' ? draftToProfile(draft) : selectedProfile!}
         isOwner={view === 'complete'}
+        isOwnProfile={view === 'detail' && selectedProfile?.id === `member-${authUser?.id}`}
         publicProfile={view === 'complete' && Boolean(authUser?.preferences.publicProfile)}
         visibilitySaving={visibilitySaving}
         visibilityError={visibilityError}
@@ -357,7 +449,7 @@ export default function AlumniApp() {
         onBack={goHome}
         onHome={goHome}
         onCreate={requestCreate}
-        onEdit={() => navigate(draft.avatar?.recipe?.subject ? '/create?step=9' : '/create?step=7', 'create')}
+        onEdit={() => beginProfile(savedDraft ?? draft)}
         onLogout={() => void logout()}
         shareProfileUrl={
           view === 'detail' && selectedProfile
@@ -369,7 +461,12 @@ export default function AlumniApp() {
         avatarRecipe={view === 'complete' ? draft.avatar?.recipe : undefined}
         adoptedAvatarId={view === 'complete' ? draft.avatar?.generatedAssetId : undefined}
         onAdoptAvatar={adoptAvatar}
+        commentProfileId={view === 'detail' ? selectedProfile?.id : authUser?.preferences.publicProfile ? `member-${authUser.id}` : undefined}
+        loggedIn={Boolean(authUser)}
+        onLogin={() => openAuth('login')}
       />
+      {authLayer}
+      </>
     );
   }
 
@@ -377,6 +474,7 @@ export default function AlumniApp() {
     <>
       <HomeView
         profiles={profiles}
+        limited={limitedProfiles}
         accountName={authUser?.realName || (authUser ? '我的账号' : undefined)}
         hasProfile={authUser?.hasProfile}
         ownProfileId={authUser ? `member-${authUser.id}` : undefined}
@@ -384,39 +482,9 @@ export default function AlumniApp() {
         onSelectProfile={openProfile}
         onOwnProfile={openOwnProfile}
         onRequestCreate={requestCreate}
+        onRegister={() => openAuth('register')}
         onLogin={() => openAuth('login')}
       />
-
-      <Dialog open={identityOpen} onOpenChange={setIdentityOpen}>
-        <DialogContent className="max-w-md gap-5 rounded-[26px] bg-[#fffaf1] p-6 sm:p-7">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-black tracking-tight">
-              先对个暗号：你是？
-            </DialogTitle>
-            <DialogDescription className="text-sm leading-6">
-              浏览不需要登录；创建角色卡只对校友开放。
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-3">
-            <Button
-              className="h-16 justify-between rounded-2xl bg-[#ee573c] px-5 text-base font-black text-white hover:bg-[#d9462f]"
-              onClick={() => beginProfile(createDefaultDraft())}
-            >
-              <span className="flex items-center gap-3">
-                <GraduationCap className="size-5" /> 我是校友
-              </span>
-              <ArrowRight className="size-5" />
-            </Button>
-            <Button
-              variant="outline"
-              className="h-14 justify-start rounded-2xl border-black/10 bg-white px-5 text-base font-bold"
-              onClick={() => setIdentityOpen(false)}
-            >
-              我是在校生，先逛逛
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {authLayer}
     </>

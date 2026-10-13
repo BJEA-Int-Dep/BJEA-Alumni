@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { SchoolHeader } from '@/components/school-header';
 import { EmojiAvatar } from '@/features/avatar/emoji-avatar';
 import { GeneratedAvatarPanel } from '@/features/avatar/generated-avatar-panel';
+import { ProfileComments } from '@/features/comments/profile-comments';
 import { SharePosterDialog } from '@/features/share/share-poster-dialog';
 import type { PublicProfilePayload } from '../../shared/account';
 import type { AvatarRecipe } from '../../shared/avatar';
@@ -32,6 +33,7 @@ type VisibilityState = Record<VisibilityField, boolean>;
 interface ProfileViewProps {
   profile: AlumniProfile;
   isOwner?: boolean;
+  isOwnProfile?: boolean;
   publicProfile?: boolean;
   visibilitySaving?: boolean;
   visibilityError?: string;
@@ -45,6 +47,9 @@ interface ProfileViewProps {
   avatarRecipe?: AvatarRecipe;
   adoptedAvatarId?: string;
   onAdoptAvatar?: (profile: PublicProfilePayload) => void;
+  commentProfileId?: string;
+  loggedIn?: boolean;
+  onLogin?: () => void;
 }
 
 function PrivacyBadge({ isPublic }: { isPublic: boolean }) {
@@ -63,6 +68,7 @@ function PrivacyBadge({ isPublic }: { isPublic: boolean }) {
 export function ProfileView({
   profile,
   isOwner = false,
+  isOwnProfile = false,
   publicProfile = false,
   visibilitySaving = false,
   visibilityError = '',
@@ -76,6 +82,9 @@ export function ProfileView({
   avatarRecipe,
   adoptedAvatarId,
   onAdoptAvatar,
+  commentProfileId,
+  loggedIn = false,
+  onLogin,
 }: ProfileViewProps) {
   const [shareOpen, setShareOpen] = useState(false);
   const visibility: VisibilityState = {
@@ -152,43 +161,35 @@ export function ProfileView({
         ) : null}
 
         {isOwner ? (
-          <div className="mb-5 flex items-center gap-3 rounded-2xl border border-[#64a94e]/25 bg-[#edf5e6] p-4">
-            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-white text-[#4f9445] shadow-sm">
-              <Sparkles className="size-4" />
-            </span>
-            <div>
-              <p className="font-black">你的 Profile 已经保存</p>
-              <p className="mt-0.5 text-xs font-medium text-[#52714e]">
-                {publicProfile ? '已发布到校友墙，大家可以看到。' : '目前只有你能看到；打开下方开关后才会显示在校友墙。'}
-              </p>
+          <section className="mb-5 rounded-2xl border border-[#64a94e]/25 bg-[#edf5e6] p-4 sm:p-5">
+            <div className="flex items-start gap-3">
+              <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-white text-[#4f9445] shadow-sm">
+                <Sparkles className="size-4" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="font-black">你的 Profile 已经保存</p>
+                <p className="mt-1 text-xs font-medium leading-5 text-[#52714e]">
+                  {publicProfile ? '已发布到校友墙，大家可以看到。' : '目前只有你能看到。'}邮箱不会公开；随时可以调整右侧的公开开关。
+                </p>
+              </div>
+              <label className="flex shrink-0 cursor-pointer flex-col items-center gap-1 text-xs font-bold text-[#52714e]">
+                <input
+                  type="checkbox"
+                  checked={publicProfile}
+                  onChange={(event) => onPublicProfileChange?.(event.target.checked)}
+                  disabled={visibilitySaving}
+                  className="size-5 accent-[#ee573c]"
+                />
+                公开
+              </label>
             </div>
-          </div>
+            {visibilitySaving ? <p role="status" className="mt-3 text-xs text-[#52714e]">正在保存公开设置…</p> : null}
+            {visibilityError ? <p role="alert" className="mt-3 text-xs font-bold text-destructive">{visibilityError}</p> : null}
+          </section>
         ) : null}
 
         {isOwner ? (
           avatarRecipe?.subject && onAdoptAvatar ? <GeneratedAvatarPanel recipe={avatarRecipe} adoptedId={adoptedAvatarId} onAdopt={onAdoptAvatar} /> : null
-        ) : null}
-
-        {isOwner ? (
-          <section className="mb-5 rounded-2xl border border-black/10 bg-white p-4 sm:p-5">
-            <label className="flex cursor-pointer items-start justify-between gap-4">
-              <span>
-                <span className="block font-black">公开我的 Profile</span>
-                <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                  开启后任何人都能在校友墙浏览；邮箱不会公开。关闭后会从校友墙移除，资料仍会保存。
-                </span>
-              </span>
-              <input
-                type="checkbox"
-                checked={publicProfile}
-                onChange={(event) => onPublicProfileChange?.(event.target.checked)}
-                disabled={visibilitySaving}
-                className="mt-1 size-5 shrink-0 accent-[#ee573c]"
-              />
-            </label>
-            {visibilitySaving ? <p role="status" className="mt-2 text-xs text-muted-foreground">正在保存公开设置…</p> : null}
-            {visibilityError ? <p role="alert" className="mt-2 text-xs font-bold text-destructive">{visibilityError}</p> : null}
-          </section>
         ) : null}
 
         <article className="overflow-hidden rounded-[30px] bg-white shadow-[0_24px_70px_rgba(54,44,30,0.12)] ring-1 ring-black/[0.06]">
@@ -216,9 +217,7 @@ export function ProfileView({
                 <h1 className="text-3xl font-black tracking-tight text-[#23272b] sm:text-4xl">
                   {profile.nickname}
                 </h1>
-                <p className="mt-1.5 text-sm font-bold leading-6 text-[#3c4246] sm:text-base">
-                  “{profile.summary}”
-                </p>
+                {profile.summary ? <p className="mt-1.5 text-sm font-bold leading-6 text-[#3c4246] sm:text-base">“{profile.summary}”</p> : null}
               </div>
             </div>
           </div>
@@ -232,7 +231,7 @@ export function ProfileView({
             </h2>
 
             <div className="mt-6 divide-y divide-black/[0.07] rounded-2xl border border-black/[0.07] bg-[#fcfaf5] px-4 sm:px-6">
-              {detailRows.map((row) => {
+              {detailRows.filter((row) => row.value).map((row) => {
                 const Icon = row.icon;
                 const isPublic =
                   row.key === 'status' ? true : publicProfile && visibility[row.key];
@@ -256,7 +255,7 @@ export function ProfileView({
             </div>
 
             <div className="mt-8 grid gap-8 sm:grid-cols-2 sm:gap-10">
-              <section>
+              {profile.reflection ? <section>
                 <div className="flex items-center justify-between gap-2">
                   <p className="flex items-center gap-2 text-xs font-black text-muted-foreground">
                     <MessageCircle className="size-4" /> 一点真心话
@@ -268,8 +267,8 @@ export function ProfileView({
                 <p className="mt-3 text-lg font-black leading-8">
                   {profile.reflection}
                 </p>
-              </section>
-              <section>
+              </section> : null}
+              {profile.advice ? <section>
                 <div className="flex items-center justify-between gap-2">
                   <p className="flex items-center gap-2 text-xs font-black text-muted-foreground">
                     <Sparkles className="size-4" /> 给学弟学妹的话
@@ -281,10 +280,12 @@ export function ProfileView({
                 <blockquote className="mt-3 border-l-4 border-[#f6a624] pl-4 text-lg font-black leading-8">
                   “{profile.advice}”
                 </blockquote>
-              </section>
+              </section> : null}
             </div>
           </div>
         </article>
+
+        {commentProfileId && onLogin ? <ProfileComments profileId={commentProfileId} loggedIn={loggedIn} onLogin={onLogin} /> : null}
 
         {isOwner ? (
           <div className="mt-5 flex gap-2 rounded-2xl border border-[#64a94e]/25 bg-[#edf5e6] p-4 sm:justify-end">
@@ -297,7 +298,7 @@ export function ProfileView({
           </div>
         ) : null}
 
-        <aside className="mt-6 rounded-[24px] border border-[#1680bd]/18 bg-[#eaf5fa] p-5 sm:flex sm:items-center sm:justify-between sm:gap-6 sm:p-6">
+        {!isOwner && !isOwnProfile ? <aside className="mt-6 rounded-[24px] border border-[#1680bd]/18 bg-[#eaf5fa] p-5 sm:flex sm:items-center sm:justify-between sm:gap-6 sm:p-6">
           <div className="flex items-start gap-3">
             <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-white text-[#176e9e] shadow-sm">
               <ShieldCheck className="size-5" />
@@ -309,7 +310,7 @@ export function ProfileView({
               </p>
             </div>
           </div>
-        </aside>
+        </aside> : null}
 
         {!isOwner ? (
           <div className="mt-8 text-center">

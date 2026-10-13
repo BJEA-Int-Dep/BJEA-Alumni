@@ -36,3 +36,5 @@ export const TONE_CLASSES: Record<Tone, string> = {
   coral: 'from-[#ef593c] via-[#f18c58] to-[#ffd09e]',
   sky: 'from-[#1c83c5] via-[#71b5db] to-[#d1ebf5]',
 };
+
+export const TONES = Object.keys(TONE_CLASSES) as Tone[];

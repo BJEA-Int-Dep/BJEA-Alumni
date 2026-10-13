@@ -1,9 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import {
   ArrowLeft,
-  Bell,
-  CalendarDays,
-  Globe2,
   KeyRound,
   LogIn,
   Mail,
@@ -11,7 +8,6 @@ import {
 } from 'lucide-react';
 import {
   defaultAccountPreferences,
-  type AccountPreferences,
   type AuthPayload,
 } from '../../../shared/account';
 import { Button } from '@/components/ui/button';
@@ -34,7 +30,6 @@ export type AuthMode =
 interface AuthDialogProps {
   open: boolean;
   initialMode?: AuthMode;
-  publishProfileAfterRegister?: boolean;
   onOpenChange: (open: boolean) => void;
   onAuthenticated: (payload: AuthPayload) => void;
   onCreateProfile: () => void;
@@ -43,15 +38,15 @@ interface AuthDialogProps {
 const modeCopy: Record<AuthMode, { title: string; description: string }> = {
   login: {
     title: '邮箱验证码登录',
-    description: '无需记密码，用注册邮箱收取验证码即可回来。',
+    description: '无需记密码。内测阶段使用固定测试验证码 7410。',
   },
   'password-login': {
     title: '使用密码登录',
     description: '已设置密码的用户，可以用邮箱或原登录昵称登录。',
   },
   register: {
-    title: '保存你的 Profile',
-    description: '最后验证邮箱，下次就能随时回来修改。',
+    title: '先注册校友账号',
+    description: '留下邮箱和真实姓名，就可以开始创建 Profile。真实姓名不会公开。当前使用固定测试验证码 7410。',
   },
   'reset-password': {
     title: '设置新密码',
@@ -83,57 +78,9 @@ function Field({
   );
 }
 
-function PreferenceOption({
-  checked,
-  onChange,
-  icon,
-  title,
-  description,
-  recommended = false,
-}: {
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  recommended?: boolean;
-}) {
-  return (
-    <label
-      className={`flex cursor-pointer gap-3 rounded-2xl border p-3.5 transition ${
-        checked
-          ? 'border-[#ee573c]/45 bg-[#fff0e7] ring-2 ring-[#ee573c]/10'
-          : 'border-black/[0.08] bg-white hover:border-black/20'
-      }`}
-    >
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(event) => onChange(event.target.checked)}
-        className="mt-0.5 size-5 shrink-0 accent-[#ee573c]"
-      />
-      <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-2 text-sm font-black text-foreground">
-          <span className="text-[#df5035]">{icon}</span>
-          {title}
-          {recommended ? (
-            <span className="rounded-full bg-[#ee573c] px-2 py-0.5 text-[10px] text-white">
-              推荐
-            </span>
-          ) : null}
-        </span>
-        <span className="mt-1 block text-xs font-medium leading-5 text-muted-foreground">
-          {description}
-        </span>
-      </span>
-    </label>
-  );
-}
-
 export function AuthDialog({
   open,
   initialMode = 'login',
-  publishProfileAfterRegister = false,
   onOpenChange,
   onAuthenticated,
   onCreateProfile,
@@ -145,9 +92,6 @@ export function AuthDialog({
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [code, setCode] = useState('');
-  const [preferences, setPreferences] = useState<AccountPreferences>(
-    defaultAccountPreferences,
-  );
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -160,8 +104,6 @@ export function AuthDialog({
     setCode('');
     setPassword('');
     setConfirmPassword('');
-    if (initialMode === 'register')
-      setPreferences(defaultAccountPreferences());
   }, [initialMode, open]);
 
   const switchMode = (next: AuthMode) => {
@@ -173,10 +115,6 @@ export function AuthDialog({
     setConfirmPassword('');
   };
 
-  const updatePreference = (
-    key: keyof AccountPreferences,
-    value: boolean,
-  ) => setPreferences((current) => ({ ...current, [key]: value }));
 
   const sendCode = async () => {
     setError('');
@@ -231,7 +169,7 @@ export function AuthDialog({
       if (mode === 'register') {
         const payload = await apiRequest<AuthPayload>('/api/auth/register', {
           method: 'POST',
-          body: JSON.stringify({ realName, email, code, preferences }),
+          body: JSON.stringify({ realName, email, code, preferences: defaultAccountPreferences() }),
         });
         onAuthenticated(payload);
         return;
@@ -258,9 +196,7 @@ export function AuthDialog({
       : mode === 'password-login'
         ? '登录'
         : mode === 'register'
-          ? publishProfileAfterRegister
-            ? '验证邮箱并保存 Profile'
-            : '验证邮箱并保存'
+          ? '注册并开始创建'
           : '更新密码';
 
   return (
@@ -281,7 +217,7 @@ export function AuthDialog({
                 className="mb-1 -ml-2 w-fit rounded-full px-2 font-black"
               >
                 <ArrowLeft className="size-4" />
-                {mode === 'register' ? '返回角色卡' : '返回验证码登录'}
+                {mode === 'register' ? '返回' : '返回验证码登录'}
               </Button>
             ) : null}
             <DialogTitle className="text-2xl font-black tracking-tight">
@@ -388,45 +324,6 @@ export function AuthDialog({
               />
             ) : null}
 
-            {mode === 'register' ? (
-              <fieldset className="grid gap-2.5">
-                <legend className="mb-1 text-sm font-black text-foreground">
-                  你希望怎样参与？
-                </legend>
-                <p className="-mt-1 mb-1 text-xs leading-5 text-muted-foreground">
-                  三项都可选，以后可以随时修改。
-                </p>
-                <PreferenceOption
-                  checked={preferences.notifyMajorEvents}
-                  onChange={(value) =>
-                    updatePreference('notifyMajorEvents', value)
-                  }
-                  icon={<CalendarDays className="size-4" />}
-                  title="学校重大活动通知"
-                  description="如校友返校日，约每年 1 次。"
-                  recommended
-                />
-                <PreferenceOption
-                  checked={preferences.notifyCommunityUpdates}
-                  onChange={(value) =>
-                    updatePreference('notifyCommunityUpdates', value)
-                  }
-                  icon={<Bell className="size-4" />}
-                  title="校友活动与校园近况"
-                  description="约每 3 个月 1 次。"
-                />
-                <PreferenceOption
-                  checked={preferences.publicProfile}
-                  onChange={(value) =>
-                    updatePreference('publicProfile', value)
-                  }
-                  icon={<Globe2 className="size-4" />}
-                  title="公开我的 Profile"
-                  description="发布到任何人都能浏览的校友墙；在校生可通过老师提出联系，邮箱永不公开。"
-                />
-              </fieldset>
-            ) : null}
-
             {error ? (
               <p
                 role="alert"
@@ -463,9 +360,19 @@ export function AuthDialog({
                 }}
                 className="text-xs font-bold text-[#17648e] hover:underline"
               >
-                还没有 Profile？先创建
+                还没有账号？先注册
               </button>
             </div>
+          ) : null}
+
+          {mode === 'register' ? (
+            <button
+              type="button"
+              onClick={() => switchMode('login')}
+              className="mt-5 block w-full text-center text-xs font-bold text-[#17648e] hover:underline"
+            >
+              已有帐号？登录
+            </button>
           ) : null}
 
           {mode === 'password-login' ? (

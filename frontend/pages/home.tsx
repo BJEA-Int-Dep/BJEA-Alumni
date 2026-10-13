@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowUpRight, LogIn, Share2, Sparkles, UserRound } from 'lucide-react';
+import { ArrowUpRight, Share2, Sparkles, UserPlus, UserRound } from 'lucide-react';
 import { SchoolHeader } from '@/components/school-header';
 import { Button } from '@/components/ui/button';
 import { EmojiAvatar } from '@/features/avatar/emoji-avatar';
@@ -9,24 +9,28 @@ import { TONE_CLASSES, type AlumniProfile } from '@/lib/alumni-data';
 interface HomeViewProps {
   profiles: AlumniProfile[];
   accountName?: string;
+  limited?: boolean;
   hasProfile?: boolean;
   ownProfileId?: string;
   ownProfile?: AlumniProfile;
   onSelectProfile: (profile: AlumniProfile) => void;
   onOwnProfile: () => void;
   onRequestCreate: () => void;
+  onRegister: () => void;
   onLogin: () => void;
 }
 
 export function HomeView({
   profiles,
   accountName,
+  limited = false,
   hasProfile = false,
   ownProfileId,
   ownProfile,
   onSelectProfile,
   onOwnProfile,
   onRequestCreate,
+  onRegister,
   onLogin,
 }: HomeViewProps) {
   const [shareOpen, setShareOpen] = useState(false);
@@ -64,10 +68,10 @@ export function HomeView({
               <Button
                 type="button"
                 variant="outline"
-                onClick={onLogin}
+                onClick={onRegister}
                 className="h-9 rounded-xl bg-white px-3 font-black"
               >
-                <LogIn className="size-4" /> 登录
+                <UserPlus className="size-4" /> 注册
               </Button>
             )}
           </div>
@@ -102,7 +106,7 @@ export function HomeView({
               Meet the alumni
             </p>
             <h2 className="text-2xl font-black tracking-tight sm:text-3xl">
-              {profiles.length ? '先认识几位吧' : '校友墙还没有公开的 Profile'}
+              {profiles.length ? limited ? '先认识几位吧' : '认识更多校友' : '校友墙还没有公开的 Profile'}
             </h2>
           </div>
           <p className="hidden text-sm font-medium text-muted-foreground sm:block">
@@ -110,19 +114,20 @@ export function HomeView({
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4">
+        <div className="columns-2 gap-3 sm:columns-3 sm:gap-5 lg:columns-4">
           {profiles.map((person) => {
             const isMine = person.id === ownProfileId;
+            const hasAvatar = Boolean(person.avatarImageUrl || person.emoji);
             return (
               <button
                 key={person.id}
                 type="button"
                 onClick={() => onSelectProfile(person)}
-                className="group overflow-hidden rounded-[22px] bg-card text-left shadow-[0_10px_35px_rgba(55,45,31,0.08)] ring-1 ring-black/[0.06] transition duration-200 hover:-translate-y-1 hover:shadow-[0_18px_45px_rgba(55,45,31,0.14)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#1680bd]/25"
+                className="group mb-3 flex w-full break-inside-avoid flex-col overflow-hidden rounded-[22px] bg-card text-left shadow-[0_10px_35px_rgba(55,45,31,0.08)] ring-1 ring-black/[0.06] transition duration-200 hover:-translate-y-1 hover:shadow-[0_18px_45px_rgba(55,45,31,0.14)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#1680bd]/25 sm:mb-5"
                 aria-label={`查看 ${person.nickname} 的校友主页${isMine ? '（我的）' : ''}`}
               >
                 <div
-                  className={`relative flex aspect-[5/4] items-center justify-center overflow-hidden bg-gradient-to-br ${TONE_CLASSES[person.tone]}`}
+                  className={`relative flex w-full items-center justify-center overflow-hidden bg-gradient-to-br ${hasAvatar ? 'aspect-[5/4]' : 'aspect-[2/1]'} ${TONE_CLASSES[person.tone]}`}
                 >
                   <span className="absolute left-3 top-3 rounded-full bg-white/85 px-2 py-1 text-[10px] font-black text-black/70 shadow-sm backdrop-blur-sm">
                     CLASS OF &apos;{person.year.slice(-2)}
@@ -146,16 +151,12 @@ export function HomeView({
                     <ArrowUpRight className="size-4" />
                   </span>
                 </div>
-                <div className="p-3.5 sm:p-4">
+                <div className="w-full p-3.5 sm:p-4">
                   <h3 className="truncate text-base font-black tracking-tight sm:text-lg">
                     {person.nickname}
                   </h3>
-                  <p className="mt-1 line-clamp-3 text-xs font-medium leading-[1.55] text-foreground/72 sm:text-sm">
-                    “{person.summary}”
-                  </p>
-                  <p className="mt-3 truncate border-t border-black/[0.06] pt-2.5 text-[10px] font-bold text-muted-foreground sm:text-xs">
-                    {person.field}
-                  </p>
+                  {person.summary ? <p className="mt-1 line-clamp-3 text-xs font-medium leading-[1.55] text-foreground/72 sm:text-sm">“{person.summary}”</p> : null}
+                  {person.field ? <p className="mt-3 truncate border-t border-black/[0.06] pt-2.5 text-[10px] font-bold text-muted-foreground sm:text-xs">{person.field}</p> : null}
                 </div>
               </button>
             );
@@ -167,11 +168,12 @@ export function HomeView({
             👀
           </p>
           <h2 className="mt-2 text-xl font-black">
-            还有很多人生支线，正在加载
+            {limited ? '登录后看看更多校友' : '还有很多人生支线，正在加载'}
           </h2>
           <p className="mx-auto mt-1 max-w-md text-sm font-medium leading-6 text-muted-foreground">
-            这里没有排名，也没有标准答案。期待更多校友把自己的经历分享出来。
+            {limited ? '目前随机展示 3 位校友。用邮箱登录或注册，即可浏览完整校友墙。' : '这里没有排名，也没有标准答案。期待更多校友把自己的经历分享出来。'}
           </p>
+          {limited ? <Button onClick={onLogin} className="mt-4 rounded-xl bg-[#24282c] font-black text-white">登录查看全部</Button> : null}
         </div>
       </section>
 
@@ -181,7 +183,7 @@ export function HomeView({
             <div className="hidden min-w-0 flex-1 sm:block">
               <p className="text-sm font-black">校友墙上还差一个你</p>
               <p className="truncate text-xs text-muted-foreground">
-                大约 3 分钟，边回答边生成角色卡
+                先注册，再按自己的节奏添加内容
               </p>
             </div>
             <Button

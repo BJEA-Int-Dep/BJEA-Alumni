@@ -76,6 +76,16 @@ export function openDatabase(path = process.env.DATABASE_PATH || '.data/bjea.sql
     );
     CREATE INDEX IF NOT EXISTS avatar_jobs_user_created
       ON avatar_jobs(user_id, created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS profile_comments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      profile_id TEXT NOT NULL,
+      author_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      body TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS profile_comments_profile_created
+      ON profile_comments(profile_id, created_at DESC);
   `);
   const userColumns = db
     .prepare('PRAGMA table_info(users)')

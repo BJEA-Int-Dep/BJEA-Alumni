@@ -6,7 +6,7 @@ import {
 import { ApiError } from './errors.ts';
 
 const prompts = {
-  subject: `你为校友角色卡推荐可爱的头像主体。根据用户自述给出 5 个有画面感、彼此明显不同的具体主体，可以是动物、植物、食物、物件或幻想生物；不必限于人格类型。每项只写主体本身，例如“小水獭”“仙人掌”“云朵精灵”；绝对不要写眼镜、帽子、衣服、道具、动作、姿态或背景，这些会在下一题单独选择。用简短中文名词短语表达，不附理由。不要直接把专业、学校、地点、年龄或情绪诊断画成角色，也不要推断敏感身份。`,
+  subject: `你为校友角色卡推荐可爱的头像主体。根据用户自述给出 5 个有画面感、彼此明显不同的具体主体，可以是动物、植物、食物、物件或幻想生物；不必限于人格类型。用户资料中还会提供其他已公开 Profile 使用的头像主体清单，不要推荐相同主体，也不要只换量词或形容词来重复它们；清单只用于去重，不用于模仿。每项只写主体本身，例如“小水獭”“仙人掌”“云朵精灵”；绝对不要写眼镜、帽子、衣服、道具、动作、姿态或背景，这些会在下一题单独选择。用简短中文名词短语表达，不附理由。不要直接把专业、学校、地点、年龄或情绪诊断画成角色，也不要推断敏感身份。`,
   detail: `用户已选好头像主体。给出 5 个适合这个主体的配件或动作方案，每项是一句简短、能画出来的中文描述；有的可以只靠姿态或表情，不必每项都加物件。让形象在 32px 仍易认，避免文字、复杂背景、多个角色和细碎装饰。不要根据资料推断敏感身份。`,
 };
 const schema = {
@@ -20,6 +20,7 @@ const schema = {
 
 export async function suggestAvatarConcepts(
   input: AvatarConceptRequest,
+  existingSubjects: string[] = [],
 ): Promise<AvatarConceptResponse> {
   const key = process.env.OPENROUTER_API_KEY;
   if (!key) throw new ApiError(503, '头像灵感暂未配置，可以自己填写。');
@@ -36,6 +37,7 @@ export async function suggestAvatarConcepts(
           reflection: input.answers.reflection,
           direction: input.answers.direction,
           subject: input.stage === 'detail' ? input.subject : undefined,
+          existingSubjects: input.stage === 'subject' ? existingSubjects : undefined,
         }) },
       ],
       response_format: {
@@ -59,8 +61,17 @@ export async function suggestAvatarConcepts(
     throw new ApiError(502, '这次头像灵感没有完成，请重试。');
   try {
     const parsed = avatarConceptResponseSchema.parse(JSON.parse(content));
-    const options = [...new Set(parsed.options.map((option) => option.trim()))];
-    if (options.length < 3) throw new Error('Not enough options');
+    const normalizeSubject = (value: string) => value.normalize('NFKC').trim().toLocaleLowerCase('zh-CN')
+      .replace(/^(?:(?:一只|一条|一朵|一棵|一个|一头|一颗|小)\s*)+/u, '')
+      .replace(/[\p{P}\p{S}\s]/gu, '');
+    const seen = new Set(input.stage === 'subject' ? existingSubjects.map(normalizeSubject) : []);
+    const options = parsed.options.map((option) => option.trim()).filter((option) => {
+      const normalized = input.stage === 'subject' ? normalizeSubject(option) : option;
+      if (!normalized || seen.has(normalized)) return false;
+      seen.add(normalized);
+      return true;
+    });
+    if (!options.length) throw new Error('No new options');
     return { options };
   } catch {
     throw new ApiError(502, '这次头像灵感格式不完整，请重试。');

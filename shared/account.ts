@@ -101,17 +101,7 @@ export const defaultAccountPreferences = (): AccountPreferences => ({
 });
 
 export function canPublishProfile(draft: PersistedProfileDraft) {
-  const hasPublicAnswer = [
-    draft.personalityTraits?.length ? draft.personalityTraits.join(',') : '',
-    draft.personalityCustom,
-    draft.statusId,
-    draft.statusCustom,
-    draft.place,
-    draft.direction,
-    draft.reflection,
-    draft.advice,
-  ].some((value) => value.trim());
-  return Boolean(draft.nickname.trim() && draft.year.trim() && hasPublicAnswer);
+  return nicknameSchema.safeParse(draft.nickname).success && /^20\d{2}$/.test(draft.year);
 }
 
 export interface AccountUser {

@@ -46,7 +46,7 @@ export const avatarConceptRequestSchema = z.object({
 }).strict();
 export type AvatarConceptRequest = z.infer<typeof avatarConceptRequestSchema>;
 export const avatarConceptResponseSchema = z.object({
-  options: z.array(z.string().trim().min(2).max(120)).min(3).max(5),
+  options: z.array(z.string().trim().min(2).max(120)).min(1).max(5),
 });
 export type AvatarConceptResponse = z.infer<typeof avatarConceptResponseSchema>;
 
