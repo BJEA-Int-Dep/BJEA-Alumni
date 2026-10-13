@@ -21,7 +21,7 @@ try {
     .all() as Array<{ user_id: number; draft_json: string }>;
   for (const row of rows) {
     const draft = profileDraftSchema.parse(JSON.parse(row.draft_json));
-    const recipe = draft.avatar?.recipe;
+    const recipe = draft.avatar?.adoptedRecipe ?? draft.avatar?.recipe;
     if (!recipe?.subject.trim()) {
       failed++;
       console.warn(`Profile ${row.user_id} has no avatar recipe.`);
@@ -42,7 +42,7 @@ try {
       const id = randomUUID();
       await storeGeneratedImage(id, bytes);
       const now = Date.now();
-      const updated = { ...draft, avatar: { ...draft.avatar!, generatedAssetId: id } };
+      const updated = { ...draft, avatar: { ...draft.avatar!, generatedAssetId: id, adoptedRecipe: recipe } };
       database.transaction(() => {
         database.prepare("INSERT INTO avatar_jobs (id, user_id, recipe_json, status, created_at, updated_at) VALUES (?, ?, ?, 'succeeded', ?, ?)")
           .run(id, row.user_id, recipeJson, now, now);

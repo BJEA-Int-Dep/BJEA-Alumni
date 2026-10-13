@@ -2,7 +2,6 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { generatedAvatarPath, type AvatarRecipe } from '../shared/avatar.ts';
-import { profileDraftSchema } from '../shared/account.ts';
 import type { AppDatabase } from './database.ts';
 import { ApiError } from './errors.ts';
 
@@ -101,16 +100,6 @@ export function createGeneratedAvatarService(database: AppDatabase) {
   database.prepare("UPDATE avatar_jobs SET status = 'failed', error = '生成中断，请重试。', updated_at = ? WHERE status = 'running'").run(Date.now());
   let working = false;
   const findJob = (id: string) => database.prepare('SELECT * FROM avatar_jobs WHERE id = ?').get(id) as JobRow | undefined;
-  function adoptIfEmpty(userId: number, jobId: string, recipe: AvatarRecipe) {
-    const row = database.prepare('SELECT draft_json FROM profiles WHERE user_id = ?').get(userId) as { draft_json: string } | undefined;
-    if (!row) return;
-    const parsed = profileDraftSchema.safeParse(JSON.parse(row.draft_json));
-    if (!parsed.success) return;
-    const draft = parsed.data;
-    if (draft.avatar?.generatedAssetId || JSON.stringify(draft.avatar?.recipe) !== JSON.stringify(recipe)) return;
-    const updated = { ...draft, avatar: { ...draft.avatar, generatedAssetId: jobId } };
-    database.prepare('UPDATE profiles SET draft_json = ?, updated_at = ? WHERE user_id = ?').run(JSON.stringify(updated), Date.now(), userId);
-  }
   function pump() {
     if (working) return;
     const job = database.prepare("SELECT * FROM avatar_jobs WHERE status = 'queued' ORDER BY created_at LIMIT 1").get() as JobRow | undefined;
@@ -122,10 +111,7 @@ export function createGeneratedAvatarService(database: AppDatabase) {
         const { recipe, tone } = JSON.parse(job.recipe_json) as { recipe: AvatarRecipe; tone: string };
         const bytes = await generateImage(recipe, tone);
         await storeGeneratedImage(job.id, bytes);
-        database.transaction(() => {
-          database.prepare("UPDATE avatar_jobs SET status = 'succeeded', updated_at = ? WHERE id = ?").run(Date.now(), job.id);
-          adoptIfEmpty(job.user_id, job.id, recipe);
-        })();
+        database.prepare("UPDATE avatar_jobs SET status = 'succeeded', updated_at = ? WHERE id = ?").run(Date.now(), job.id);
       } catch (error) {
         console.warn(`[avatar-image] ${error instanceof Error ? error.message : 'Generation failed'}`);
         database.prepare("UPDATE avatar_jobs SET status = 'failed', error = '生成失败，请重试。', updated_at = ? WHERE id = ?").run(Date.now(), job.id);
@@ -140,12 +126,12 @@ export function createGeneratedAvatarService(database: AppDatabase) {
   function start(userId: number, recipe: AvatarRecipe, tone: string, refresh: boolean) {
     const recipeJson = JSON.stringify({ recipe, tone, styleVersion: avatarStyleVersion });
     const existing = database.prepare('SELECT * FROM avatar_jobs WHERE user_id = ? AND recipe_json = ? ORDER BY created_at DESC LIMIT 1').get(userId, recipeJson) as JobRow | undefined;
-    if (existing && !refresh) {
-      if (existing.status === 'succeeded') adoptIfEmpty(userId, existing.id, recipe);
-      return publicJob(existing);
-    }
+    if (existing && !refresh) return publicJob(existing);
     const active = database.prepare("SELECT * FROM avatar_jobs WHERE user_id = ? AND status IN ('queued', 'running') ORDER BY created_at DESC LIMIT 1").get(userId) as JobRow | undefined;
-    if (active) return publicJob(active);
+    if (active) {
+      if (active.recipe_json !== recipeJson) throw new ApiError(409, '上一张头像还在生成，请稍后再试。');
+      return publicJob(active);
+    }
     const today = new Date();
     today.setUTCHours(0, 0, 0, 0);
     const count = database.prepare('SELECT COUNT(*) AS count FROM avatar_jobs WHERE user_id = ? AND created_at >= ?').get(userId, today.getTime()) as { count: number };

@@ -18,12 +18,9 @@ import {
 
 import { Button } from '@/components/ui/button';
 import { SchoolHeader } from '@/components/school-header';
-import { EmojiAvatar } from '@/features/avatar/emoji-avatar';
-import { GeneratedAvatarPanel } from '@/features/avatar/generated-avatar-panel';
+import { ProfileAvatar } from '@/features/avatar/profile-avatar';
 import { ProfileComments } from '@/features/comments/profile-comments';
 import { SharePosterDialog } from '@/features/share/share-poster-dialog';
-import type { PublicProfilePayload } from '../../shared/account';
-import type { AvatarRecipe } from '../../shared/avatar';
 import { TONE_CLASSES, type AlumniProfile } from '@/lib/alumni-data';
 
 type VisibilityField = 'year' | 'place' | 'direction' | 'reflection' | 'advice';
@@ -44,9 +41,6 @@ interface ProfileViewProps {
   onEdit: () => void;
   onLogout?: () => void;
   shareProfileUrl?: string;
-  avatarRecipe?: AvatarRecipe;
-  adoptedAvatarId?: string;
-  onAdoptAvatar?: (profile: PublicProfilePayload) => void;
   commentProfileId?: string;
   loggedIn?: boolean;
   onLogin?: () => void;
@@ -79,9 +73,6 @@ export function ProfileView({
   onEdit,
   onLogout,
   shareProfileUrl,
-  avatarRecipe,
-  adoptedAvatarId,
-  onAdoptAvatar,
   commentProfileId,
   loggedIn = false,
   onLogin,
@@ -188,10 +179,6 @@ export function ProfileView({
           </section>
         ) : null}
 
-        {isOwner ? (
-          avatarRecipe?.subject && onAdoptAvatar ? <GeneratedAvatarPanel recipe={avatarRecipe} adoptedId={adoptedAvatarId} onAdopt={onAdoptAvatar} /> : null
-        ) : null}
-
         <article className="overflow-hidden rounded-[30px] bg-white shadow-[0_24px_70px_rgba(54,44,30,0.12)] ring-1 ring-black/[0.06]">
           <div
             className={`relative min-h-[330px] overflow-hidden bg-gradient-to-br p-6 sm:min-h-[410px] sm:p-10 ${TONE_CLASSES[profile.tone]}`}
@@ -207,11 +194,10 @@ export function ProfileView({
                   亦中校友角色卡
                 </span>
               </div>
-              <EmojiAvatar
+              <ProfileAvatar
                 imageUrl={profile.avatarImageUrl}
-                emoji={profile.emoji}
                 label={`${profile.nickname} 的角色头像${profile.avatarLabel ? `：${profile.avatarLabel}` : ''}`}
-                className="size-44 self-center select-none text-[8rem] drop-shadow-[0_20px_18px_rgba(0,0,0,0.2)] sm:size-56 sm:text-[11rem]"
+                className="size-44 self-center select-none drop-shadow-[0_20px_18px_rgba(0,0,0,0.2)] sm:size-56"
               />
               <div className="max-w-2xl rounded-[22px] bg-white/88 p-4 shadow-sm backdrop-blur-md sm:p-5">
                 <h1 className="text-3xl font-black tracking-tight text-[#23272b] sm:text-4xl">

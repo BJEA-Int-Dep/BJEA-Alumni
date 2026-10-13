@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ArrowUpRight, Share2, Sparkles, UserPlus, UserRound } from 'lucide-react';
 import { SchoolHeader } from '@/components/school-header';
 import { Button } from '@/components/ui/button';
-import { EmojiAvatar } from '@/features/avatar/emoji-avatar';
+import { ProfileAvatar } from '@/features/avatar/profile-avatar';
 import { SharePosterDialog } from '@/features/share/share-poster-dialog';
 import { TONE_CLASSES, type AlumniProfile } from '@/lib/alumni-data';
 
@@ -54,11 +54,10 @@ export function HomeView({
                 aria-label={`查看我的 Profile（${accountName}）`}
               >
                 {ownProfile ? (
-                  <EmojiAvatar
+                  <ProfileAvatar
                     imageUrl={ownProfile.avatarImageUrl}
-                    emoji={ownProfile.emoji}
                     label={`${accountName} 的头像`}
-                    className="size-10 text-2xl [&>span[title]]:hidden"
+                    className="size-10"
                   />
                 ) : (
                   <UserRound className="size-5" aria-hidden="true" />
@@ -79,7 +78,14 @@ export function HomeView({
       />
 
       <section className="mx-auto max-w-6xl px-4 pt-6 sm:px-8 sm:pt-10">
-        <div className="relative overflow-hidden rounded-[28px] border border-black/5 bg-[#24282c] px-5 py-7 text-white shadow-[0_24px_70px_rgba(48,39,27,0.12)] sm:px-10 sm:py-10">
+        <a
+          href="#alumni"
+          onClick={(event) => {
+            event.preventDefault();
+            document.getElementById('alumni')?.scrollIntoView({ behavior: 'smooth' });
+          }}
+          className="relative block overflow-hidden rounded-[28px] border border-black/5 bg-[#24282c] px-5 py-7 text-white shadow-[0_24px_70px_rgba(48,39,27,0.12)] focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[#1680bd] sm:px-10 sm:py-10"
+        >
           <div className="absolute -right-8 -top-12 h-40 w-40 rounded-full bg-[#ef593c] opacity-80 blur-2xl" />
           <div className="absolute -bottom-20 right-24 h-44 w-44 rounded-full bg-[#137dbb] opacity-60 blur-3xl" />
           <div className="relative max-w-2xl">
@@ -96,10 +102,10 @@ export function HomeView({
               没有成功模板，也不是简历排行榜。先看看不同的选择、绕路与人生支线。
             </p>
           </div>
-        </div>
+        </a>
       </section>
 
-      <section className="mx-auto max-w-6xl px-4 pt-9 sm:px-8 sm:pt-12">
+      <section id="alumni" className="mx-auto max-w-6xl px-4 pt-9 sm:px-8 sm:pt-12">
         <div className="mb-5 flex items-end justify-between gap-4">
           <div>
             <p className="mb-1 text-xs font-black uppercase tracking-[0.18em] text-[#df5035]">
@@ -117,7 +123,7 @@ export function HomeView({
         <div className="columns-2 gap-3 sm:columns-3 sm:gap-5 lg:columns-4">
           {profiles.map((person) => {
             const isMine = person.id === ownProfileId;
-            const hasAvatar = Boolean(person.avatarImageUrl || person.emoji);
+            const hasAvatar = Boolean(person.avatarImageUrl);
             return (
               <button
                 key={person.id}
@@ -141,11 +147,10 @@ export function HomeView({
                       示例
                     </span>
                   ) : null}
-                  <EmojiAvatar
+                  <ProfileAvatar
                     imageUrl={person.avatarImageUrl}
-                    emoji={person.emoji}
                     label={`${person.nickname} 的头像`}
-                    className="size-24 select-none text-[clamp(3.5rem,14vw,6.5rem)] drop-shadow-[0_12px_12px_rgba(0,0,0,0.16)] transition duration-300 group-hover:scale-110 group-hover:-rotate-3 sm:size-28"
+                    className="size-24 select-none drop-shadow-[0_12px_12px_rgba(0,0,0,0.16)] transition duration-300 group-hover:scale-110 group-hover:-rotate-3 sm:size-28"
                   />
                   <span className="absolute bottom-3 right-3 grid size-8 place-items-center rounded-full bg-white text-black shadow-md transition group-hover:rotate-45">
                     <ArrowUpRight className="size-4" />

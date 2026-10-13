@@ -144,22 +144,21 @@ export async function renderSharePoster(profile: AlumniProfile, profileUrl: stri
   ctx.font = '900 27px "Noto Sans SC", "Microsoft YaHei", sans-serif';
   ctx.fillText(`CLASS OF '${profile.year.slice(-2)}`, 128, 255);
 
-  if (profile.avatarImageUrl?.startsWith('/api/avatar/')) {
+  if (profile.avatarImageUrl?.startsWith('/api/avatar/generated/')) {
     try {
       const avatar = await loadImage(profile.avatarImageUrl);
-      const generated = profile.avatarImageUrl.startsWith('/api/avatar/generated/');
-      const size = generated ? 450 : 500;
+      const size = 450;
       ctx.drawImage(avatar, (WIDTH - size) / 2, 275 + (500 - size) / 2, size, size);
     } catch {
       ctx.textAlign = 'center';
-      ctx.font = '340px "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
-      ctx.fillText(profile.emoji || '✦', WIDTH / 2, 505);
+      ctx.font = '340px serif';
+      ctx.fillText('✦', WIDTH / 2, 505);
       ctx.textAlign = 'left';
     }
   } else {
     ctx.textAlign = 'center';
-    ctx.font = '340px "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
-    ctx.fillText(profile.emoji || '✦', WIDTH / 2, 505);
+    ctx.font = '340px serif';
+    ctx.fillText('✦', WIDTH / 2, 505);
     ctx.textAlign = 'left';
   }
   ctx.restore();

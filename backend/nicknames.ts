@@ -1,7 +1,7 @@
 import {
   nicknameSuggestionsSchema,
   type NicknameSuggestions,
-  type SuggestionRequest,
+  type NicknameSuggestionRequest,
 } from '../shared/avatar.ts';
 import { ApiError } from './errors.ts';
 
@@ -25,7 +25,7 @@ const schema = {
 };
 
 export async function suggestNicknames(
-  input: SuggestionRequest,
+  input: NicknameSuggestionRequest,
 ): Promise<NicknameSuggestions> {
   const key = process.env.OPENROUTER_API_KEY;
   if (!key) throw new ApiError(503, '昵称推荐暂未配置，你可以自己填写。');

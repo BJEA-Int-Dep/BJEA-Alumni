@@ -20,13 +20,11 @@ import {
 } from '../shared/account.ts';
 import {
   avatarConceptRequestSchema,
+  avatarRecipeSchema,
   generatedAvatarIdSchema,
   generatedAvatarPath,
   nicknameSuggestionRequestSchema,
-  selectedPair,
-  suggestionRequestSchema,
   type NicknameSuggestions,
-  type Suggestions,
 } from '../shared/avatar.ts';
 import {
   createSession,
@@ -41,14 +39,11 @@ import {
   verificationCodeMatches,
 } from './auth.ts';
 import { openDatabase, type AppDatabase } from './database.ts';
-import { suggest } from './openrouter.ts';
 import { suggestNicknames } from './nicknames.ts';
 import { suggestAvatarConcepts } from './avatar-concepts.ts';
 import { createGeneratedAvatarService } from './generated-avatar.ts';
 import { moderateComment } from './moderate-comment.ts';
 import { ApiError } from './errors.ts';
-import { decodeEmoji, imageBytes } from './images.ts';
-import { compatibleEmojis, randomPair, supported } from './kitchen.ts';
 
 try {
   loadEnvFile('.env');
@@ -104,26 +99,18 @@ interface ProfileRow {
 
 export function createApiServer(
   providers: {
-    suggest?: typeof suggest;
     suggestNicknames?: typeof suggestNicknames;
-    image?: typeof imageBytes;
     database?: AppDatabase;
   } = {},
 ) {
   const database = providers.database ?? openDatabase();
   const generatedAvatars = createGeneratedAvatarService(database);
   const requests = new Map<string, { count: number; expires: number }>();
-  const cache = new Map<
-    string,
-    { promise: Promise<Suggestions>; expires: number }
-  >();
   const nicknameCache = new Map<
     string,
     { promise: Promise<NicknameSuggestions>; expires: number }
   >();
   const conceptCache = new Map<string, { promise: ReturnType<typeof suggestAvatarConcepts>; expires: number }>();
-  let active = 0;
-  let daily = { date: '', count: 0 };
   let activeNicknames = 0;
   let dailyNicknames = { date: '', count: 0 };
   let activeConcepts = 0;
@@ -198,8 +185,7 @@ export function createApiServer(
     return {
       avatarImageUrl: avatar?.generatedAssetId
         ? generatedAvatarPath(avatar.generatedAssetId)
-        : selectedPair(avatar)?.imageUrl,
-      avatarEmoji: avatar?.selection.first || draft?.emoji || '',
+        : undefined,
     };
   }
 
@@ -215,7 +201,7 @@ export function createApiServer(
       try {
         const parsed = profileDraftSchema.safeParse(JSON.parse(row.draft_json));
         if (!parsed.success || !canPublishProfile(parsed.data)) return [];
-        const subject = parsed.data.avatar?.recipe?.subject.trim();
+        const subject = (parsed.data.avatar?.adoptedRecipe ?? parsed.data.avatar?.recipe)?.subject.trim();
         return subject ? [subject] : [];
       } catch { return []; }
     });
@@ -541,8 +527,8 @@ export function createApiServer(
               direction: profile.direction,
               reflection: profile.reflection,
               advice: profile.advice,
-              avatarSubject: profile.avatar?.recipe?.subject ?? '',
-              avatarDetail: profile.avatar?.recipe?.detail ?? '',
+              avatarSubject: (profile.avatar?.adoptedRecipe ?? profile.avatar?.recipe)?.subject ?? '',
+              avatarDetail: (profile.avatar?.adoptedRecipe ?? profile.avatar?.recipe)?.detail ?? '',
             },
             publishedComments,
           });
@@ -612,12 +598,9 @@ export function createApiServer(
         limit(`save-profile:${clientIp(req)}`, 120);
         const user = requireUser(database, req);
         const inputDraft = parsedBody(profileDraftSchema, await readBody(req));
-        const previousDraft = savedDraft(user.id);
-        const draft = previousDraft?.avatar?.generatedAssetId &&
-          !inputDraft.avatar?.generatedAssetId &&
-          JSON.stringify(previousDraft.avatar.recipe) === JSON.stringify(inputDraft.avatar?.recipe)
-          ? { ...inputDraft, avatar: { ...inputDraft.avatar!, generatedAssetId: previousDraft.avatar.generatedAssetId } }
-          : inputDraft;
+        if (inputDraft.avatar?.generatedAssetId)
+          generatedAvatars.succeededJob(user.id, inputDraft.avatar.generatedAssetId);
+        const draft = inputDraft;
         if (user.public_profile && !canPublishProfile(draft))
           throw new ApiError(
             400,
@@ -668,32 +651,19 @@ export function createApiServer(
         sameOrigin(req);
         limit(`avatar-generate:${clientIp(req)}`, 30);
         const user = requireUser(database, req);
-        const input = parsedBody(z.object({ refresh: z.boolean().default(false) }).strict(), await readBody(req));
-        const draft = savedDraft(user.id);
-        if (!draft?.avatar?.recipe?.subject.trim())
-          throw new ApiError(400, '请先保存头像主体，再生成头像。');
-        if (!input.refresh && draft.avatar.generatedAssetId) {
-          const adopted = generatedAvatars.findJob(draft.avatar.generatedAssetId);
-          if (adopted?.user_id === user.id && adopted.status === 'succeeded')
-            return json(res, 202, { job: generatedAvatars.status(user.id, adopted.id) });
-        }
-        return json(res, 202, { job: generatedAvatars.start(user.id, draft.avatar.recipe, draft.tone, input.refresh) });
+        const input = parsedBody(z.object({
+          recipe: avatarRecipeSchema,
+          tone: profileDraftSchema.shape.tone,
+          refresh: z.boolean().default(false),
+        }).strict(), await readBody(req));
+        if (!input.recipe.subject.trim()) throw new ApiError(400, '请先填写头像主体。');
+        return json(res, 202, { job: generatedAvatars.start(user.id, input.recipe, input.tone, input.refresh) });
       }
-      const generationMatch = /^\/api\/avatar\/generations\/([0-9a-f-]{36})(\/adopt)?$/.exec(url.pathname);
+      const generationMatch = /^\/api\/avatar\/generations\/([0-9a-f-]{36})$/.exec(url.pathname);
       if (generationMatch && generatedAvatarIdSchema.safeParse(generationMatch[1]).success) {
         const user = requireUser(database, req);
-        if (req.method === 'GET' && !generationMatch[2])
+        if (req.method === 'GET')
           return json(res, 200, { job: generatedAvatars.status(user.id, generationMatch[1]) });
-        if (req.method === 'POST' && generationMatch[2]) {
-          sameOrigin(req);
-          generatedAvatars.succeededJob(user.id, generationMatch[1]);
-          const draft = savedDraft(user.id);
-          if (!draft) throw new ApiError(404, '找不到你的 Profile。');
-          const updated = { ...draft, avatar: { ...draft.avatar!, generatedAssetId: generationMatch[1] } };
-          database.prepare('UPDATE profiles SET draft_json = ?, updated_at = ? WHERE user_id = ?')
-            .run(JSON.stringify(updated), Date.now(), user.id);
-          return json(res, 200, { profile: { id: `member-${user.id}`, draft: updated } });
-        }
       }
       if (req.method === 'GET' && url.pathname.startsWith('/api/avatar/generated/')) {
         const match = /^\/api\/avatar\/generated\/([0-9a-f-]{36})\.png$/.exec(url.pathname);
@@ -729,51 +699,6 @@ export function createApiServer(
         });
         return res.end(bytes);
       }
-      if (req.method === 'GET' && url.pathname === '/api/avatar/emojis') {
-        const withEmoji = url.searchParams.get('with');
-        if (!withEmoji) return json(res, 200, { emojis: supported });
-        const emojis = compatibleEmojis(withEmoji);
-        if (!emojis.length)
-          throw new ApiError(400, '这个 emoji 暂时无法组合。');
-        return json(res, 200, { emojis });
-      }
-      if (req.method === 'GET' && url.pathname === '/api/avatar/random') {
-        const pair = randomPair();
-        if (!pair) throw new ApiError(503, '暂时找不到可用组合，请稍后重试。');
-        return json(res, 200, pair);
-      }
-      if (
-        req.method === 'GET' &&
-        url.pathname.startsWith('/api/avatar/images/')
-      ) {
-        limit(`image:${clientIp(req)}`, 600);
-        const match =
-          /^\/api\/avatar\/images\/([0-9a-f-]+)_([0-9a-f-]+)\.png$/.exec(
-            url.pathname,
-          );
-        if (!match) throw new ApiError(400, '图片路径不正确。');
-        const image = await (providers.image ?? imageBytes)(
-          decodeEmoji(match[1]),
-          decodeEmoji(match[2]),
-        );
-        const headers = {
-          'Content-Type': 'image/png',
-          'Cache-Control':
-            'public, max-age=86400, stale-while-revalidate=604800',
-          'X-Content-Type-Options': 'nosniff',
-          ETag: `"${image.hash}"`,
-          'X-Emoji-Cache': image.cached ? 'HIT' : 'MISS',
-        };
-        if (req.headers['if-none-match'] === headers.ETag) {
-          res.writeHead(304, headers);
-          return res.end();
-        }
-        res.writeHead(200, {
-          ...headers,
-          'Content-Length': image.bytes.length,
-        });
-        return res.end(image.bytes);
-      }
       if (req.method === 'POST' && url.pathname === '/api/nicknames/suggestions') {
         sameOrigin(req);
         const parsed = nicknameSuggestionRequestSchema.safeParse(await readBody(req));
@@ -806,40 +731,7 @@ export function createApiServer(
         }
         return json(res, 200, await nicknameCache.get(key)!.promise);
       }
-      if (req.method !== 'POST' || url.pathname !== '/api/avatar/suggestions')
-        throw new ApiError(404, '接口不存在。');
-      sameOrigin(req);
-      const parsed = suggestionRequestSchema.safeParse(await readBody(req));
-      if (!parsed.success)
-        throw new ApiError(400, '填写内容格式不正确或过长。');
-      const input = parsed.data;
-      const ip = clientIp(req);
-      const key = createHash('sha256')
-        .update(ip + JSON.stringify(input))
-        .digest('hex');
-      for (const [id, item] of cache)
-        if (item.expires < Date.now()) cache.delete(id);
-      if (!cache.has(key)) {
-        limit(`suggest:${ip}`, 30);
-        const today = new Date().toISOString().slice(0, 10);
-        if (daily.date !== today) daily = { date: today, count: 0 };
-        if (daily.count >= Number(process.env.AVATAR_DAILY_LIMIT || 300))
-          throw new ApiError(
-            429,
-            '今天的头像推荐额度已用完，现有头像仍可使用。',
-          );
-        if (active >= 3)
-          throw new ApiError(503, '头像推荐正在忙，请稍后重试。');
-        daily.count++;
-        active++;
-        const promise = (providers.suggest ?? suggest)(input).finally(() => {
-          active--;
-        });
-        if (cache.size >= 300) cache.delete(cache.keys().next().value!);
-        cache.set(key, { promise, expires: Date.now() + 10 * 60000 });
-        void promise.catch(() => cache.delete(key));
-      }
-      json(res, 200, await cache.get(key)!.promise);
+      throw new ApiError(404, '接口不存在。');
     } catch (error) {
       const known = error instanceof ApiError;
       if (!known)

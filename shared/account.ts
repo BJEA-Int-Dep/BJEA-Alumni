@@ -35,24 +35,16 @@ export const verificationCodeSchema = z
   .regex(/^\d{4,8}$/, '请输入验证码。');
 
 const avatarStateSchema = z.object({
-  recommendations: z.array(
-    z.object({ emoji: z.string().max(32), reason: z.string().max(100) }),
-  ),
   nicknameSuggestions: z.array(z.string().max(32)),
-  selection: z.object({
-    first: z.string().max(32),
-    second: z.string().max(32),
-  }),
   recipe: avatarRecipeSchema.optional(),
   generatedAssetId: generatedAvatarIdSchema.optional(),
+  adoptedRecipe: avatarRecipeSchema.optional(),
 });
 
 export const profileDraftSchema = z.object({
   nickname: z.string().max(32),
-  personalityId: z.string().max(40),
   personalityTraits: z.array(z.string().max(32)).max(3).optional(),
   personalityCustom: z.string().max(180),
-  emoji: z.string().max(32),
   tone: z.enum([
     'sunset',
     'ocean',

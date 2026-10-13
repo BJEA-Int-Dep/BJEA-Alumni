@@ -252,9 +252,9 @@ async function exportWorkbook(database: AppDatabase) {
     ['给学弟学妹的话', 48],
     ['性格描述', 32],
     ['卡片色调', 14],
-    ['Emoji', 12],
-    ['头像组合 1', 14],
-    ['头像组合 2', 14],
+    ['头像主体', 24],
+    ['配件或动作', 32],
+    ['头像图片 ID', 38],
   ] as const;
   const header = columns.map(([label]) => ({
     value: label,
@@ -287,9 +287,9 @@ async function exportWorkbook(database: AppDatabase) {
       draft?.advice || '',
       draft?.personalityCustom || '',
       draft?.tone || '',
-      draft?.emoji || '',
-      draft?.avatar?.selection.first || '',
-      draft?.avatar?.selection.second || '',
+      (draft?.avatar?.adoptedRecipe ?? draft?.avatar?.recipe)?.subject || '',
+      (draft?.avatar?.adoptedRecipe ?? draft?.avatar?.recipe)?.detail || '',
+      draft?.avatar?.generatedAssetId || '',
     ].map((value) => ({ value }));
   });
   const data: SheetData = [header, ...rows];

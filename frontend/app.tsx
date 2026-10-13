@@ -359,16 +359,6 @@ export default function AlumniApp() {
     }
   };
 
-  const adoptAvatar = (profile: PublicProfilePayload) => {
-    const updated = profile.draft;
-    setDraft(updated);
-    setSavedDraft(updated);
-    if (authUser?.preferences.publicProfile) {
-      const visible = profileFromPayload(profile);
-      setProfiles((current) => [visible, ...current.filter((item) => item.id !== visible.id)]);
-    }
-  };
-
   const openProfile = (profile: AlumniProfile) => {
     if (authUser && profile.id === `member-${authUser.id}` && savedDraft) {
       setDraft(savedDraft);
@@ -415,6 +405,7 @@ export default function AlumniApp() {
           onComplete={completeProfile}
           completing={profileSaving}
           completionError={profileSaveError}
+          savedAvatar={savedDraft?.avatar}
         />
         <Dialog open={Boolean(pendingExit)} onOpenChange={(open) => { if (!open && !profileSaving) setPendingExit(null); }}>
           <DialogContent className="rounded-[24px] bg-[#fffaf1] p-6" showCloseButton={false}>
@@ -458,9 +449,6 @@ export default function AlumniApp() {
               ? `${window.location.origin}/alumni/member-${authUser.id}`
               : undefined
         }
-        avatarRecipe={view === 'complete' ? draft.avatar?.recipe : undefined}
-        adoptedAvatarId={view === 'complete' ? draft.avatar?.generatedAssetId : undefined}
-        onAdoptAvatar={adoptAvatar}
         commentProfileId={view === 'detail' ? selectedProfile?.id : authUser?.preferences.publicProfile ? `member-${authUser.id}` : undefined}
         loggedIn={Boolean(authUser)}
         onLogin={() => openAuth('login')}

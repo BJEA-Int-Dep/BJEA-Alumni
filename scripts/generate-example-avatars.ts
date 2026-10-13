@@ -21,7 +21,7 @@ try {
     .all() as Array<{ id: string; draft_json: string }>;
   for (const row of rows) {
     const draft = profileDraftSchema.parse(JSON.parse(row.draft_json));
-    const recipe = draft.avatar?.recipe;
+    const recipe = draft.avatar?.adoptedRecipe ?? draft.avatar?.recipe;
     if (!recipe?.subject.trim()) throw new Error(`Missing avatar recipe for ${row.id}`);
     const recipeJson = JSON.stringify({ recipe, tone: draft.tone, styleVersion: avatarStyleVersion });
     const existingId = draft.avatar?.generatedAssetId;
@@ -37,7 +37,7 @@ try {
       const bytes = await generateImage(recipe, draft.tone);
       const id = randomUUID();
       await storeGeneratedImage(id, bytes);
-      const updated = { ...draft, avatar: { ...draft.avatar!, generatedAssetId: id } };
+      const updated = { ...draft, avatar: { ...draft.avatar!, generatedAssetId: id, adoptedRecipe: recipe } };
       database.transaction(() => {
         database.prepare('INSERT INTO example_avatar_assets (id, example_id, recipe_json, created_at) VALUES (?, ?, ?, ?)')
           .run(id, row.id, recipeJson, Date.now());

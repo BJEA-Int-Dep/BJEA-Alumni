@@ -15,7 +15,6 @@ export interface AlumniProfile {
   id: string;
   nickname: string;
   year: string;
-  emoji: string;
   summary: string;
   field: string;
   status: string;

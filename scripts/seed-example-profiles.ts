@@ -25,10 +25,8 @@ const rows = examples.map((example, index) => {
     throw new Error(`Invalid example id: ${example.id}`);
   const draft = profileDraftSchema.parse({
     nickname: example.nickname,
-    personalityId: '',
     personalityTraits: example.personalityTraits,
     personalityCustom: '',
-    emoji: example.emoji,
     tone: example.tone,
     summary: example.summary,
     avatar: { ...emptyAvatar(), recipe: example.avatarRecipe },
@@ -57,15 +55,23 @@ try {
     for (const row of rows) {
       const existing = existingRow.get(row.id) as { draft_json: string } | undefined;
       let generatedAssetId: string | undefined;
+      let adoptedRecipe: AvatarRecipe | undefined;
       if (existing) {
         try {
           const parsed = profileDraftSchema.safeParse(JSON.parse(existing.draft_json));
-          if (parsed.success) generatedAssetId = parsed.data.avatar?.generatedAssetId;
+          if (parsed.success) {
+            generatedAssetId = parsed.data.avatar?.generatedAssetId;
+            adoptedRecipe = parsed.data.avatar?.adoptedRecipe ?? parsed.data.avatar?.recipe;
+          }
         } catch { /* Replace invalid legacy draft. */ }
       }
       const draft = {
         ...row.draft,
-        avatar: { ...row.draft.avatar!, generatedAssetId },
+        avatar: {
+          ...row.draft.avatar!,
+          generatedAssetId,
+          adoptedRecipe: generatedAssetId ? adoptedRecipe : undefined,
+        },
       };
       upsert.run(row.id, JSON.stringify(draft), now + row.order, now);
     }

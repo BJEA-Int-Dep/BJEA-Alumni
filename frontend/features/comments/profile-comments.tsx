@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent, type PointerEvent as React
 import { MessageCircle, UserRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { EmojiAvatar } from '@/features/avatar/emoji-avatar';
+import { ProfileAvatar } from '@/features/avatar/profile-avatar';
 import { apiRequest } from '@/lib/api';
 
 interface Comment {
@@ -13,7 +13,6 @@ interface Comment {
   isMine: boolean;
   canDelete: boolean;
   avatarImageUrl?: string;
-  avatarEmoji: string;
 }
 
 interface CommentMenu {
@@ -136,8 +135,8 @@ export function ProfileComments({ profileId, loggedIn, onLogin }: { profileId: s
       >
         <div className="flex items-start gap-3">
           <span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-full border border-black/[0.05] bg-[#f1f0ed] text-muted-foreground">
-            {comment.avatarImageUrl || comment.avatarEmoji
-              ? <EmojiAvatar imageUrl={comment.avatarImageUrl} emoji={comment.avatarEmoji || '👤'} label={`${comment.authorName}的头像`} className="size-10 text-2xl" />
+            {comment.avatarImageUrl
+              ? <ProfileAvatar imageUrl={comment.avatarImageUrl} label={`${comment.authorName}的头像`} className="size-10" />
               : <UserRound aria-hidden="true" className="size-5" />}
           </span>
           <div className="min-w-0 flex-1">

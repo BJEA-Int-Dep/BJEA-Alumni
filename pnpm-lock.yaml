@@ -20,9 +20,6 @@ importers:
       clsx:
         specifier: 2.1.1
         version: 2.1.1
-      emoji-mixer:
-        specifier: 1.3.1
-        version: 1.3.1
       lucide-react:
         specifier: 1.31.0
         version: 1.31.0(react@19.2.6)
@@ -618,12 +615,6 @@ packages:
   dijkstrajs@1.0.3:
     resolution: {integrity: sha512-qiSlmBq9+BCdCA/L46dw8Uy93mloxsPSbwnm5yrKn2vMPiy8KyAskTF6zuV/j5BMsmOGZDPs7KjU+mjb670kfA==}
 
-  emoji-mixer@1.3.1:
-    resolution: {integrity: sha512-HZRz6popJx8HDpCW5HKwqNjKiinQKWfaZXHH9g+qalVaRR4ZxZRW5ljQj7+ekIA4bTsApObhhzUK9nEjT6vH6g==}
-
-  emoji-regex@10.6.0:
-    resolution: {integrity: sha512-toUI84YS5YmxW219erniWD0CIVOo46xGKColeNQRgOzDorgBi1v4D71/OFzgD9GO2UGKIv1C3Sp8DAn0+j5w7A==}
-
   emoji-regex@8.0.0:
     resolution: {integrity: sha512-MSjYzcWNOA0ewAHpz0MxpYFvwg6yjy1NG3xteoqz644VCo/RPgnr1/GGt+ic3iJTzQ8Eu3TdM14SawnVUmGE6A==}
 
@@ -982,13 +973,6 @@ packages:
   source-map-js@1.2.1:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
     engines: {node: '>=0.10.0'}
-
-  stream-chain@4.2.5:
-    resolution: {integrity: sha512-Wtyq3bNE3ggLR0v2vftqvuhltym3WbZAkZpfIrkr5F/6vpeUmWmwTgXa16zD87gpahwJ/Qulq3zVfUlgIc0J2A==}
-    engines: {node: '>=22'}
-
-  stream-json@3.6.0:
-    resolution: {integrity: sha512-NiJdqxKyau579z/E8vfqcjWfSDWxW/AT99javFXdPXF147Z5za85LRXSHEmSX9TKOakB7gaIccfD0fOIctb7KQ==}
 
   string-width@4.2.3:
     resolution: {integrity: sha512-wKyQRQpjJ0sIp62ErSZdGsjMJWsap5oRNihHhu6G7JVO/9jIB6UyevL+tXuOqrng8j/cxKTWyWUwvSTriiZz/g==}
@@ -1509,13 +1493,6 @@ snapshots:
 
   dijkstrajs@1.0.3: {}
 
-  emoji-mixer@1.3.1:
-    dependencies:
-      emoji-regex: 10.6.0
-      stream-json: 3.6.0
-
-  emoji-regex@10.6.0: {}
-
   emoji-regex@8.0.0: {}
 
   end-of-stream@1.4.5:
@@ -1834,12 +1811,6 @@ snapshots:
       simple-concat: 1.0.1
 
   source-map-js@1.2.1: {}
-
-  stream-chain@4.2.5: {}
-
-  stream-json@3.6.0:
-    dependencies:
-      stream-chain: 4.2.5
 
   string-width@4.2.3:
     dependencies:
