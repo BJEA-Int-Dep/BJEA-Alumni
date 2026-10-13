@@ -9,7 +9,6 @@ import { z } from 'zod';
 import writeXlsxFile, { type SheetData } from 'write-excel-file/node';
 import type { AccountStatus, AdminStudent } from '../shared/admin.ts';
 import {
-  accountPreferencesSchema,
   canPublishProfile,
   emailSchema,
   nicknameSchema,
@@ -38,9 +37,8 @@ const loginSchema = z
 const updateStudentSchema = z
   .object({
     nickname: nicknameSchema,
-    realName: realNameSchema,
+    realName: realNameSchema.or(z.literal('')),
     email: emailSchema,
-    preferences: accountPreferencesSchema,
     status: z.enum(['active', 'disabled']),
     draft: profileDraftSchema.nullable(),
   })
@@ -217,7 +215,7 @@ function requirePublishableProfile(student: {
   )
     throw new ApiError(
       400,
-      '公开 Profile 需要昵称、毕业年份和至少一个回答。',
+      '公开 Profile 需要昵称和毕业年份。',
     );
 }
 
@@ -394,21 +392,19 @@ export async function handleAdminRequest(context: AdminHandlerContext) {
   const userId = readUserId(url.pathname);
   if (req.method === 'PUT' && userId !== null) {
     sameOrigin(req);
-    studentById(database, userId);
+    const student = studentById(database, userId);
     const parsed = updateStudentSchema.safeParse(await readBody(req));
     if (!parsed.success)
       throw new ApiError(400, parsed.error.issues[0]?.message || '填写内容不正确。');
     const input = parsed.data;
-    requirePublishableProfile(input);
+    requirePublishableProfile({ draft: input.draft, preferences: student.preferences });
     const now = Date.now();
     try {
       database.transaction(() => {
         database
           .prepare(
             `UPDATE users SET nickname = ?, nickname_key = ?, email = ?,
-              email_key = ?, real_name = ?, notify_major_events = ?,
-              notify_community_updates = ?, public_profile = ?,
-              preferences_updated_at = ?, account_status = ? WHERE id = ?`,
+              email_key = ?, real_name = ?, account_status = ? WHERE id = ?`,
           )
           .run(
             input.nickname.trim(),
@@ -416,10 +412,6 @@ export async function handleAdminRequest(context: AdminHandlerContext) {
             input.email,
             emailKey(input.email),
             input.realName,
-            Number(input.preferences.notifyMajorEvents),
-            Number(input.preferences.notifyCommunityUpdates),
-            Number(input.preferences.publicProfile),
-            now,
             input.status,
             userId,
           );

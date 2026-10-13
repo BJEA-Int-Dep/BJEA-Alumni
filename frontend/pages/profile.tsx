@@ -118,14 +118,14 @@ export function ProfileView({
               {publicProfile ? <Check className="size-3.5" /> : <Lock className="size-3.5" />}
               {publicProfile ? '已加入校友墙' : '仅自己可见'}
             </span>
-          ) : (
+          ) : !loggedIn ? (
             <Button
               onClick={onCreate}
               className="hidden h-9 rounded-xl bg-[#ee573c] px-4 font-black text-white hover:bg-[#d9462f] sm:inline-flex"
             >
               创建我的 Profile
             </Button>
-          )
+          ) : null
         }
       />
 
@@ -298,7 +298,7 @@ export function ProfileView({
           </div>
         </aside> : null}
 
-        {!isOwner ? (
+        {!isOwner && !loggedIn ? (
           <div className="mt-8 text-center">
             <p className="text-sm font-bold text-muted-foreground">
               校友墙上还差一个你

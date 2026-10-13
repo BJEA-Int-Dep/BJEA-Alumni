@@ -157,28 +157,31 @@
   color: #23272b;
 }
 
-.auth-scroll-area {
+.subtle-scrollbar {
   scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(35 39 43 / 20%) transparent;
 }
 
-.auth-scroll-area::-webkit-scrollbar {
-  width: 4px;
+.subtle-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
 }
 
-.auth-scroll-area::-webkit-scrollbar-track {
+.subtle-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.auth-scroll-area::-webkit-scrollbar-thumb {
-  background: rgb(35 39 43 / 14%);
+.subtle-scrollbar::-webkit-scrollbar-thumb {
+  background: rgb(35 39 43 / 20%);
   border-radius: 999px;
 }
 
-.auth-scroll-area:hover::-webkit-scrollbar-thumb {
-  background: rgb(35 39 43 / 28%);
+.subtle-scrollbar:hover::-webkit-scrollbar-thumb {
+  background: rgb(35 39 43 / 35%);
 }
 
-.auth-scroll-area::-webkit-scrollbar-button {
+.subtle-scrollbar::-webkit-scrollbar-button {
   -webkit-appearance: none;
   background: transparent;
   display: none;

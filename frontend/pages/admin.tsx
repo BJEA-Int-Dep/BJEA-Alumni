@@ -13,6 +13,7 @@ import type {
   AdminStudent,
 } from '../../shared/admin';
 import type { PersistedProfileDraft } from '../../shared/account';
+import { generatedAvatarPath } from '../../shared/avatar';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -22,17 +23,11 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { apiRequest, readApiResponse } from '@/lib/api';
-
-const STATUS_OPTIONS = [
-  ['university', '本科在读'],
-  ['postgrad', '读研 / 继续深造'],
-  ['working', '已经工作'],
-  ['independent', '创业 / 自由职业'],
-  ['gap', 'Gap / 转弯中'],
-  ['other', '其他状态'],
-] as const;
+import { ProfileAvatar } from '@/features/avatar/profile-avatar';
+import { ProfilePreview } from '@/features/onboarding/profile-preview';
+import { AboutSection, JourneySection, ThoughtsSection } from '@/features/onboarding/profile-sections';
+import { STATUS_OPTIONS } from '@/features/onboarding/options';
 
 const inputClass =
   'h-11 rounded-lg border-black/10 bg-white text-sm font-medium text-foreground';
@@ -70,6 +65,7 @@ export function AdminPage() {
   const [students, setStudents] = useState<AdminStudent[]>([]);
   const [query, setQuery] = useState('');
   const [editing, setEditing] = useState<AdminStudent | null>(null);
+  const [editorTab, setEditorTab] = useState<'profile' | 'account'>('profile');
   const [loginError, setLoginError] = useState('');
   const [pageError, setPageError] = useState('');
   const [notice, setNotice] = useState('');
@@ -130,6 +126,7 @@ export function AdminPage() {
       ].some((value) => value?.toLocaleLowerCase('zh-CN').includes(key)),
     );
   }, [query, students]);
+  const avatarRecipe = editing?.draft?.avatar?.adoptedRecipe ?? editing?.draft?.avatar?.recipe;
 
   const login = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -191,7 +188,6 @@ export function AdminPage() {
             nickname: editing.nickname,
             realName: editing.realName,
             email: editing.email,
-            preferences: editing.preferences,
             status: editing.status,
             draft: editing.draft,
           }),
@@ -411,7 +407,7 @@ export function AdminPage() {
           </p>
         ) : null}
 
-        <div className="overflow-x-auto rounded-xl bg-white shadow-sm ring-1 ring-black/10">
+        <div className="subtle-scrollbar overflow-x-auto rounded-xl bg-white shadow-sm ring-1 ring-black/10">
           <table className="w-full min-w-[900px] border-collapse text-left text-sm">
             <thead className="bg-[#f8f6f1] text-xs text-muted-foreground">
               <tr>
@@ -429,15 +425,31 @@ export function AdminPage() {
             <tbody>
               {visibleStudents.map((student) => (
                 <tr key={student.id} className="border-t border-black/[0.06]">
-                  <td className="px-4 py-3 font-bold">{student.realName || '待补充'}</td>
-                  <td className="px-4 py-3">{student.draft?.nickname || '尚未创建'}</td>
+                  <td className="px-4 py-3 font-bold">
+                    {student.realName || '待补充'}
+                    <span className="block text-xs font-normal text-muted-foreground">账号 #{student.id}</span>
+                  </td>
+                  <td className="px-4 py-3">
+                    {student.draft ? (
+                      <span className="flex items-center gap-2">
+                        <ProfileAvatar
+                          imageUrl={student.draft.avatar?.generatedAssetId
+                            ? generatedAvatarPath(student.draft.avatar.generatedAssetId)
+                            : undefined}
+                          label="Profile 头像"
+                          className="size-9 rounded-full bg-[#f4f1e9]"
+                        />
+                        <span className="font-bold">{student.draft.nickname || '未填写昵称'}</span>
+                      </span>
+                    ) : '尚未创建'}
+                  </td>
                   <td className="px-4 py-3">{student.email}</td>
                   <td className="px-4 py-3">
                     {student.preferences.publicProfile ? '是' : '否'}
                   </td>
                   <td className="px-4 py-3">{student.draft?.year || '—'}</td>
                   <td className="px-4 py-3">
-                    {STATUS_OPTIONS.find(([id]) => id === student.draft?.statusId)?.[1] ||
+                    {STATUS_OPTIONS.find((option) => option.id === student.draft?.statusId)?.label ||
                       student.draft?.statusCustom ||
                       '—'}
                   </td>
@@ -460,6 +472,7 @@ export function AdminPage() {
                       variant="outline"
                       onClick={() => {
                         setEditing(structuredClone(student));
+                        setEditorTab(student.draft ? 'profile' : 'account');
                         setNewPassword('');
                         setNotice('');
                         setPageError('');
@@ -479,7 +492,7 @@ export function AdminPage() {
       </div>
 
       <Dialog open={Boolean(editing)} onOpenChange={(open) => !open && setEditing(null)}>
-        <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto rounded-2xl bg-[#f8f6f1] p-0">
+        <DialogContent className="subtle-scrollbar max-h-[92vh] overflow-y-auto rounded-2xl bg-[#f8f6f1] p-0 sm:max-w-5xl">
           {editing ? (
             <form onSubmit={saveStudent}>
               <DialogHeader className="border-b border-black/10 bg-white p-5 pr-12">
@@ -489,178 +502,173 @@ export function AdminPage() {
                 <DialogDescription>账号 ID：{editing.id} · 注册于 {formatDate(editing.createdAt)}</DialogDescription>
               </DialogHeader>
 
-              <div className="grid gap-6 p-5">
-                <section className="rounded-xl bg-white p-4 ring-1 ring-black/10">
-                  <h2 className="mb-4 text-sm font-black">账号信息（仅后台可见）</h2>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <Field
-                      label="真实姓名"
-                      value={editing.realName}
-                      onChange={(event) => updateEditing({ realName: event.target.value })}
-                      required
-                    />
-                    <Field
-                      label="旧版密码登录昵称"
-                      value={editing.nickname}
-                      onChange={(event) => updateEditing({ nickname: event.target.value })}
-                      required
-                    />
-                    <Field
-                      label="邮箱"
-                      type="email"
-                      value={editing.email}
-                      onChange={(event) => updateEditing({ email: event.target.value })}
-                      required
-                    />
-                    <label className="grid gap-1.5 text-xs font-bold text-muted-foreground">
-                      账号状态
-                      <select
-                        value={editing.status}
-                        onChange={(event) =>
-                          updateEditing({ status: event.target.value as AccountStatus })
-                        }
-                        className={inputClass}
-                      >
-                        <option value="active">正常</option>
-                        <option value="disabled">已停用</option>
-                      </select>
-                    </label>
-                  </div>
-                </section>
+              <div role="group" aria-label="编辑内容" className="flex gap-2 border-b border-black/10 bg-white px-5 py-3">
+                {(['profile', 'account'] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    aria-pressed={editorTab === tab}
+                    onClick={() => setEditorTab(tab)}
+                    className={`rounded-xl px-4 py-2 text-sm font-black ${editorTab === tab ? 'bg-[#24282c] text-white' : 'bg-[#f4f1e9] text-foreground'}`}
+                  >
+                    {tab === 'profile' ? '公开 Profile' : '账号与权限'}
+                  </button>
+                ))}
+              </div>
 
-                <section className="rounded-xl bg-white p-4 ring-1 ring-black/10">
-                  <h2 className="text-sm font-black">通知与公开授权</h2>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    老师可协助修改；正常情况下应由校友本人选择。
-                  </p>
-                  <div className="mt-4 grid gap-3">
-                    {[
-                      ['notifyMajorEvents', '学校重大活动通知（约每年 1 次）'],
-                      ['notifyCommunityUpdates', '校友活动与校园近况（约每 3 个月 1 次）'],
-                      ['publicProfile', '公开到任何人可浏览的校友墙'],
-                    ].map(([key, label]) => (
-                      <label key={key} className="flex items-center gap-3 rounded-lg border border-black/10 p-3 text-sm font-bold">
-                        <input
-                          type="checkbox"
-                          checked={editing.preferences[key as keyof typeof editing.preferences]}
-                          onChange={(event) =>
-                            updateEditing({
-                              preferences: {
-                                ...editing.preferences,
-                                [key]: event.target.checked,
-                              },
-                            })
-                          }
-                          className="size-4 accent-[#ee573c]"
-                        />
-                        {label}
-                      </label>
-                    ))}
-                  </div>
-                </section>
-
-                <section className="rounded-xl bg-white p-4 ring-1 ring-black/10">
-                  <h2 className="mb-4 text-sm font-black">公开 Profile</h2>
-                  {editing.draft ? (
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <Field
-                        label="Profile 昵称"
-                        value={editing.draft.nickname}
-                        onChange={(event) => updateDraft({ nickname: event.target.value })}
-                        required
-                      />
-                      <Field
-                        label="高中毕业年份"
-                        value={editing.draft.year}
-                        onChange={(event) => updateDraft({ year: event.target.value })}
-                        required
-                      />
-                      <label className="grid gap-1.5 text-xs font-bold text-muted-foreground">
-                        当前阶段
-                        <select
-                          value={editing.draft.statusId}
-                          onChange={(event) =>
-                            updateDraft({
-                              statusId: event.target.value as PersistedProfileDraft['statusId'],
-                            })
-                          }
-                          className={inputClass}
-                        >
-                          {STATUS_OPTIONS.map(([id, label]) => (
-                            <option key={id} value={id}>{label}</option>
-                          ))}
-                        </select>
-                      </label>
-                      {editing.draft.statusId === 'other' ? (
-                        <Field
-                          label="自定义阶段"
-                          value={editing.draft.statusCustom}
-                          onChange={(event) => updateDraft({ statusCustom: event.target.value })}
-                          required
-                        />
-                      ) : null}
-                      <Field
-                        label="现在在哪里"
-                        value={editing.draft.place}
-                        onChange={(event) => updateDraft({ place: event.target.value })}
-                        required
-                      />
-                      <Field
-                        label="主要方向"
-                        value={editing.draft.direction}
-                        onChange={(event) => updateDraft({ direction: event.target.value })}
-                        required
-                      />
-                      <label className="grid gap-1.5 text-xs font-bold text-muted-foreground sm:col-span-2">
-                        角色简介
-                        <Textarea
-                          value={editing.draft.summary}
-                          onChange={(event) => updateDraft({ summary: event.target.value })}
-                          maxLength={180}
-                          className="min-h-20 rounded-lg border-black/10 bg-white"
-                        />
-                      </label>
-                      <label className="grid gap-1.5 text-xs font-bold text-muted-foreground sm:col-span-2">
-                        一点真心话
-                        <Textarea
-                          value={editing.draft.reflection}
-                          onChange={(event) => updateDraft({ reflection: event.target.value })}
-                          maxLength={500}
-                          required
-                          className="min-h-24 rounded-lg border-black/10 bg-white"
-                        />
-                      </label>
-                      <label className="grid gap-1.5 text-xs font-bold text-muted-foreground sm:col-span-2">
-                        给学弟学妹的话
-                        <Textarea
-                          value={editing.draft.advice}
-                          onChange={(event) => updateDraft({ advice: event.target.value })}
-                          maxLength={500}
-                          className="min-h-24 rounded-lg border-black/10 bg-white"
-                        />
-                      </label>
+              <div className="grid gap-5 p-5">
+                {editorTab === 'profile' ? editing.draft ? (
+                  <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
+                    <div className="order-2 grid min-w-0 gap-4 lg:order-1">
+                      <section className="rounded-2xl bg-[#fffaf1] p-5 shadow-sm">
+                        <div className="mb-4 flex items-baseline justify-between gap-3">
+                          <h2 className="text-lg font-black">基本信息</h2>
+                          <span className="text-xs font-bold text-[#df5035]">必填</span>
+                        </div>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <Field
+                            label="Profile 昵称"
+                            value={editing.draft.nickname}
+                            onChange={(event) => updateDraft({ nickname: event.target.value })}
+                            maxLength={24}
+                            required
+                          />
+                          <Field
+                            label="高中毕业年份"
+                            value={editing.draft.year}
+                            onChange={(event) => updateDraft({ year: event.target.value })}
+                            maxLength={4}
+                            inputMode="numeric"
+                            pattern="20[0-9]{2}"
+                            required
+                          />
+                        </div>
+                      </section>
+                      <section className="rounded-2xl bg-[#fffaf1] p-5 shadow-sm">
+                        <h2 className="mb-1 text-lg font-black">关于我</h2>
+                        <p className="mb-4 text-xs text-muted-foreground">选几个性格标签，也可以写一句话介绍自己。</p>
+                        <AboutSection draft={editing.draft} patchDraft={updateDraft} />
+                      </section>
+                      <section className="rounded-2xl bg-[#fffaf1] p-5 shadow-sm">
+                        <h2 className="mb-1 text-lg font-black">我的现状</h2>
+                        <p className="mb-4 text-xs text-muted-foreground">以下内容都可以留空。</p>
+                        <JourneySection draft={editing.draft} patchDraft={updateDraft} />
+                      </section>
+                      <section className="rounded-2xl bg-[#fffaf1] p-5 shadow-sm">
+                        <h2 className="mb-1 text-lg font-black">一些想法</h2>
+                        <p className="mb-4 text-xs text-muted-foreground">想分享时再写。</p>
+                        <ThoughtsSection draft={editing.draft} patchDraft={updateDraft} />
+                      </section>
+                      <section className="rounded-2xl bg-[#fffaf1] p-5 shadow-sm">
+                        <h2 className="text-lg font-black">AI 头像</h2>
+                        <p className="mt-1 text-xs text-muted-foreground">头像由校友本人生成并采纳；这里显示当前已保存的头像。</p>
+                        <div className="mt-4 flex items-center gap-4">
+                          <ProfileAvatar
+                            imageUrl={editing.draft.avatar?.generatedAssetId
+                              ? generatedAvatarPath(editing.draft.avatar.generatedAssetId)
+                              : undefined}
+                            label="当前头像"
+                            className="size-20 rounded-2xl bg-white ring-1 ring-black/10"
+                          />
+                          <div className="min-w-0 text-sm">
+                            <p className="font-bold">{avatarRecipe?.subject || '尚未设置头像主体'}</p>
+                            <p className="mt-1 text-muted-foreground">
+                              {avatarRecipe?.detail || (editing.draft.avatar?.generatedAssetId
+                                ? '暂无配件或动作' : '尚未采纳头像')}
+                            </p>
+                          </div>
+                        </div>
+                      </section>
                     </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">这名学生还没有创建 Profile。</p>
-                  )}
-                </section>
-
-                <section className="rounded-xl bg-white p-4 ring-1 ring-black/10">
-                  <h2 className="text-sm font-black">重置密码</h2>
-                  <p className="mt-1 text-xs text-muted-foreground">重置后学生会退出所有设备，由老师单独告知新密码。</p>
-                  <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                    <Input
-                      type="password"
-                      value={newPassword}
-                      onChange={(event) => setNewPassword(event.target.value)}
-                      placeholder="输入至少 8 位的新密码"
-                      className={inputClass}
-                    />
-                    <Button type="button" variant="outline" onClick={() => void resetPassword()} disabled={saving}>
-                      重置密码
-                    </Button>
+                    <div className="order-1 lg:order-2">
+                      <ProfilePreview draft={editing.draft} onToneChange={(tone) => updateDraft({ tone })} />
+                    </div>
                   </div>
-                </section>
+                ) : (
+                  <div className="rounded-2xl bg-white p-6 text-sm text-muted-foreground">
+                    这名校友还没有创建 Profile；目前只能由本人创建。
+                  </div>
+                ) : (
+                  <div className="grid gap-4">
+                    <section className="rounded-2xl bg-white p-5 shadow-sm">
+                      <h2 className="text-lg font-black">账号信息</h2>
+                      <p className="mb-4 mt-1 text-xs text-muted-foreground">真实姓名和邮箱仅供后台管理，不会显示在公开 Profile 上。</p>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <Field
+                          label="真实姓名"
+                          value={editing.realName}
+                          onChange={(event) => updateEditing({ realName: event.target.value })}
+                          required
+                        />
+                        <Field
+                          label="邮箱"
+                          type="email"
+                          value={editing.email}
+                          onChange={(event) => updateEditing({ email: event.target.value })}
+                          required
+                        />
+                        <label className="grid gap-1.5 text-xs font-bold text-muted-foreground">
+                          账号状态
+                          <select
+                            value={editing.status}
+                            onChange={(event) => updateEditing({ status: event.target.value as AccountStatus })}
+                            className={inputClass}
+                          >
+                            <option value="active">正常</option>
+                            <option value="disabled">已停用</option>
+                          </select>
+                        </label>
+                      </div>
+                      <details className="mt-5 border-t border-black/10 pt-4">
+                        <summary className="cursor-pointer text-sm font-bold">旧版登录设置</summary>
+                        <p className="my-3 text-xs text-muted-foreground">登录昵称用于兼容旧版密码登录，与公开 Profile 昵称不同。</p>
+                        <div className="max-w-sm">
+                          <Field
+                            label="登录昵称"
+                            value={editing.nickname}
+                            onChange={(event) => updateEditing({ nickname: event.target.value })}
+                          />
+                        </div>
+                      </details>
+                    </section>
+                    <section className="rounded-2xl bg-white p-5 shadow-sm">
+                      <h2 className="text-lg font-black">校友的授权状态</h2>
+                      <p className="mt-1 text-xs text-muted-foreground">由校友本人设置，管理员只能查看。</p>
+                      <div className="mt-4 grid gap-3">
+                        {([
+                          ['notifyMajorEvents', '学校重大活动通知（约每年 1 次）'],
+                          ['notifyCommunityUpdates', '校友活动与校园近况（约每 3 个月 1 次）'],
+                          ['publicProfile', '公开到任何人可浏览的校友墙'],
+                        ] as const).map(([key, label]) => (
+                          <div key={key} className="flex items-center justify-between gap-3 rounded-lg border border-black/10 p-3 text-sm">
+                            <span>{label}</span>
+                            <span className={`shrink-0 font-bold ${editing.preferences[key] ? 'text-[#3f743b]' : 'text-muted-foreground'}`}>
+                              {key === 'publicProfile'
+                                ? editing.preferences[key] ? '已公开' : '未公开'
+                                : editing.preferences[key] ? '已同意' : '未同意'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                    <section className="rounded-2xl bg-white p-5 shadow-sm">
+                      <h2 className="text-lg font-black">重置密码</h2>
+                      <p className="mt-1 text-xs text-muted-foreground">重置后学生会退出所有设备，由老师单独告知新密码。</p>
+                      <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                        <Input
+                          type="password"
+                          value={newPassword}
+                          onChange={(event) => setNewPassword(event.target.value)}
+                          placeholder="输入至少 8 位的新密码"
+                          className={inputClass}
+                        />
+                        <Button type="button" variant="outline" onClick={() => void resetPassword()} disabled={saving}>
+                          重置密码
+                        </Button>
+                      </div>
+                    </section>
+                  </div>
+                )}
 
                 {notice ? (
                   <p role="status" className="rounded-lg bg-[#edf5e6] p-3 text-xs font-bold text-[#3f743b]">

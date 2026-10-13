@@ -229,7 +229,7 @@ export function AuthDialog({
           </DialogHeader>
         </div>
 
-        <div className="auth-scroll-area min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5 sm:px-7">
+        <div className="subtle-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5 sm:px-7">
           <form id="auth-dialog-form" onSubmit={submit} className="grid gap-4">
             {mode === 'register' ? (
               <Field

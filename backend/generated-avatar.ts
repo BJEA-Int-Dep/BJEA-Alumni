@@ -132,12 +132,11 @@ export function createGeneratedAvatarService(database: AppDatabase) {
       if (active.recipe_json !== recipeJson) throw new ApiError(409, '上一张头像还在生成，请稍后再试。');
       return publicJob(active);
     }
-    const today = new Date();
-    today.setUTCHours(0, 0, 0, 0);
-    const count = database.prepare('SELECT COUNT(*) AS count FROM avatar_jobs WHERE user_id = ? AND created_at >= ?').get(userId, today.getTime()) as { count: number };
-    if (count.count >= 3) throw new ApiError(429, '今天已生成三次头像，明天再试试看。');
-    const id = randomUUID();
     const now = Date.now();
+    const windowStart = now - 5 * 60 * 60 * 1000;
+    const count = database.prepare('SELECT COUNT(*) AS count FROM avatar_jobs WHERE user_id = ? AND created_at >= ? AND quota_exempt = 0').get(userId, windowStart) as { count: number };
+    if (count.count >= 3) throw new ApiError(429, '过去 5 小时已生成 3 次头像，请稍后再试。');
+    const id = randomUUID();
     database.prepare("INSERT INTO avatar_jobs (id, user_id, recipe_json, status, created_at, updated_at) VALUES (?, ?, ?, 'queued', ?, ?)").run(id, userId, recipeJson, now, now);
     pump();
     return publicJob(findJob(id)!);

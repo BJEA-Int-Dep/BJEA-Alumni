@@ -71,6 +71,7 @@ export function openDatabase(path = process.env.DATABASE_PATH || '.data/bjea.sql
       recipe_json TEXT NOT NULL,
       status TEXT NOT NULL CHECK(status IN ('queued', 'running', 'succeeded', 'failed')),
       error TEXT NOT NULL DEFAULT '',
+      quota_exempt INTEGER NOT NULL DEFAULT 0 CHECK(quota_exempt IN (0, 1)),
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
@@ -112,5 +113,10 @@ export function openDatabase(path = process.env.DATABASE_PATH || '.data/bjea.sql
     'INTEGER NOT NULL DEFAULT 0 CHECK(public_profile IN (0, 1))',
   );
   addUserColumn('preferences_updated_at', 'INTEGER NOT NULL DEFAULT 0');
+  const avatarJobColumns = db
+    .prepare('PRAGMA table_info(avatar_jobs)')
+    .all() as Array<{ name: string }>;
+  if (!avatarJobColumns.some((column) => column.name === 'quota_exempt'))
+    db.exec('ALTER TABLE avatar_jobs ADD COLUMN quota_exempt INTEGER NOT NULL DEFAULT 0 CHECK(quota_exempt IN (0, 1))');
   return db;
 }
