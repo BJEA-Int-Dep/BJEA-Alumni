@@ -12,6 +12,6 @@ Nginx 直接挂载本项目的 `dist/` 目录，因此在这里成功运行 `pnp
 
 ## 本地开发
 
-复制 `.env.example` 为 `.env` 后运行 `pnpm dev`，前端和 API 会同时启动。账号、会话和用户角色卡保存在 `DATABASE_PATH` 指定的 SQLite 文件中；邮件服务接入前，注册、找回昵称和重置密码统一使用测试验证码 `7410`（可通过 `AUTH_TEST_CODE` 修改）。
+复制 `.env.example` 为 `.env`，设置 `AUTH_TEST_CODE` 为 4–8 位数字后运行 `pnpm dev`，前端和 API 会同时启动。账号、会话和用户角色卡保存在 `DATABASE_PATH` 指定的 SQLite 文件中；邮件服务接入前，注册、找回昵称和重置密码使用 `.env` 中的测试验证码。未设置时验证码校验始终失败。
 
 生产环境使用 HTTPS 时应设置 `SESSION_COOKIE_SECURE=true`，并在接入真实邮件服务后替换固定验证码。

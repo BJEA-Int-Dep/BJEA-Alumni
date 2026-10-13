@@ -38,7 +38,7 @@ interface AuthDialogProps {
 const modeCopy: Record<AuthMode, { title: string; description: string }> = {
   login: {
     title: '邮箱验证码登录',
-    description: '无需记密码。内测阶段使用固定测试验证码 7410。',
+    description: '无需记密码。内测阶段请向管理员获取验证码。',
   },
   'password-login': {
     title: '使用密码登录',
@@ -46,7 +46,7 @@ const modeCopy: Record<AuthMode, { title: string; description: string }> = {
   },
   register: {
     title: '先注册校友账号',
-    description: '留下邮箱和真实姓名，就可以开始创建 Profile。真实姓名不会公开。当前使用固定测试验证码 7410。',
+    description: '留下邮箱和真实姓名，就可以开始创建 Profile。真实姓名不会公开。内测阶段请向管理员获取验证码。',
   },
   'reset-password': {
     title: '设置新密码',
@@ -134,7 +134,7 @@ export function AuthDialog({
         method: 'POST',
         body: JSON.stringify({ email, purpose }),
       });
-      setNotice('已模拟发送验证码；测试验证码是 7410。');
+      setNotice('内测阶段请向管理员获取验证码。');
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : '验证码发送失败。');
     }
