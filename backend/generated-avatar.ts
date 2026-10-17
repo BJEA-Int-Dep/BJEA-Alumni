@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { generatedAvatarPath, type AvatarRecipe } from '../shared/avatar.ts';
 import type { AppDatabase } from './database.ts';
 import { ApiError } from './errors.ts';
+import { avatarThumbnail } from './avatar-thumbnail.ts';
 
 type JobStatus = 'queued' | 'running' | 'succeeded' | 'failed';
 interface JobRow {
@@ -155,8 +156,9 @@ export function createGeneratedAvatarService(database: AppDatabase) {
     return job;
   }
 
-  async function image(id: string) {
+  async function image(id: string, thumbnail = false) {
     try {
+      if (thumbnail) return await avatarThumbnail(resolve(imageDirectory, `${id}.png`));
       return await readFile(resolve(imageDirectory, `${id}.png`));
     } catch {
       throw new ApiError(404, '头像图片暂不可用。');

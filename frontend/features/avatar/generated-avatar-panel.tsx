@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { apiRequest } from '@/lib/api';
 import type { Tone } from '@/lib/alumni-data';
 import type { AvatarRecipe } from '../../../shared/avatar';
+import { ProfileAvatar } from './profile-avatar';
 
 interface GenerationJob {
   id: string;
@@ -74,7 +75,7 @@ export function GeneratedAvatarPanel({
       {job?.status === 'succeeded' && job.imageUrl ? (
         <div className="mt-4 flex flex-wrap items-center gap-4">
           <div className="grid size-32 place-items-center rounded-2xl bg-white p-2 ring-1 ring-black/10">
-            <img src={job.imageUrl} alt={`生成的${recipe.subject}头像预览`} className="size-full object-contain" />
+            <ProfileAvatar imageUrl={job.imageUrl} label={`生成的${recipe.subject}头像预览`} className="size-full" />
           </div>
           {adoptedId === job.id
             ? <span className="text-sm font-black text-[#3f7a3c]">已采纳，保存 Profile 后生效</span>

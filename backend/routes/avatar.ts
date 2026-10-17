@@ -83,7 +83,7 @@ export function createAvatarRoutes() {
         return respond(200, { job: generatedAvatars.status(user.id, generationMatch[1]) });
     }
     if (req.method === 'GET' && url.pathname.startsWith('/api/avatar/generated/')) {
-      const match = /^\/api\/avatar\/generated\/([0-9a-f-]{36})\.png$/.exec(url.pathname);
+      const match = /^\/api\/avatar\/generated\/([0-9a-f-]{36})(\.png|\.thumb\.webp)$/.exec(url.pathname);
       if (!match || !generatedAvatarIdSchema.safeParse(match[1]).success)
         throw new ApiError(404, '头像图片不存在。');
       const job = generatedAvatars.findJob(match[1]);
@@ -107,12 +107,28 @@ export function createAvatarRoutes() {
         } catch { /* Invalid example profiles are not served. */ }
         if (!adopted) throw new ApiError(404, '头像图片不存在。');
       }
-      const bytes = await generatedAvatars.image(match[1]);
-      res.writeHead(200, {
-        'Content-Type': 'image/png',
-        'Content-Length': bytes.length,
-        'Cache-Control': 'private, no-store',
+      const thumbnail = match[2] === '.thumb.webp';
+      const bytes = await generatedAvatars.image(match[1], thumbnail);
+      const etag = `"${createHash('sha256').update(bytes).digest('hex')}"`;
+      const cacheHeaders = {
+        'Cache-Control': 'private, no-cache',
+        ETag: etag,
         'X-Content-Type-Options': 'nosniff',
+      };
+      // Revalidate only after checking access and confirming the image still exists.
+      const notModified = req.headers['if-none-match']?.split(',').some((value) => {
+        const tag = value.trim();
+        return tag === '*' || tag.replace(/^W\//, '') === etag;
+      });
+      if (notModified) {
+        res.writeHead(304, cacheHeaders);
+        res.end();
+        return true;
+      }
+      res.writeHead(200, {
+        ...cacheHeaders,
+        'Content-Type': thumbnail ? 'image/webp' : 'image/png',
+        'Content-Length': bytes.length,
       });
       res.end(bytes);
       return true;
