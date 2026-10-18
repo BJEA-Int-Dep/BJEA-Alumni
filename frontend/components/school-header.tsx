@@ -16,9 +16,11 @@ export function SchoolHeader({ onHome, right }: SchoolHeaderProps) {
           aria-label="返回校友墙首页"
         >
           <img
-            src="/school-logo.png"
+            src="/school-logo.svg"
             alt="北京亦庄实验中学校徽"
-            className="h-10 w-auto rounded-md bg-white object-contain px-1 sm:h-12"
+            width={196}
+            height={112}
+            className="h-8 w-auto shrink-0 object-contain sm:h-10"
           />
           <span className="min-w-0 border-l border-black/10 pl-2.5">
             <span className="block truncate text-sm font-black tracking-tight sm:text-base">

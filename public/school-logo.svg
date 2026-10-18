@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="196" height="112" viewBox="31 0 196 112" role="img" aria-labelledby="logo-title logo-description">
+  <title id="logo-title">北京亦庄实验中学 · BEIJING ETOWN ACADEMY</title>
+  <desc id="logo-description">无文字校徽：等宽彩带连接菱形与圆环，内含灰色加号、减号。</desc>
+
+  <defs>
+    <!--
+      One continuous outline, with a ribbon width of 15.2.
+      Ring center: (175.7, 56.35); outer/inner radii: 41.4 / 26.2.
+      Square construction: left vertex L = (48.2, 57.1).
+      Centerline radius r = (41.4 + 26.2) / 2 = 33.8.
+      Half-diagonal d = (175.7 + 56.35 - r * sqrt(2) - L.x - L.y) / 2.
+      Top/bottom vertices are L + (d, -d) / L + (d, d), respectively.
+      This gives equal sides at 45 degrees and a tangent rising diagonal.
+      Diagonals meet the circular arcs at their exact 45-degree tangents.
+      Convex diamond corners have radius 7.6; inner corners are mitred.
+      Coordinates below are rounded to six decimal places.
+    -->
+    <clipPath id="school-logo-ribbon" clipPathUnits="userSpaceOnUse">
+      <path d="
+        M121.848802 41.051198
+        L93.048802 12.251198
+        A7.6 7.6 0 0 0 82.300779 12.251198
+        L42.825988 51.725988
+        A7.6 7.6 0 0 0 42.825988 62.474012
+        L82.300779 101.948802
+        A7.6 7.6 0 0 0 93.048802 101.948802
+        L157.173802 37.823802
+        A26.2 26.2 0 1 1 157.173802 74.876198
+        L143.574012 61.276407
+        L132.825988 72.024430
+        L146.425779 85.624221
+        A41.4 41.4 0 1 0 146.425779 27.075779
+        L87.674791 85.826768
+        L58.948023 57.1
+        L87.674791 28.373232
+        L111.100779 51.799221
+        Z"/>
+    </clipPath>
+  </defs>
+
+  <!--
+    Clip the entire color field once. The opaque blue underlay prevents
+    transparent hairlines where adjacent colors are antialiased.
+    Color cuts across diagonals are perpendicular to the ribbon.
+  -->
+  <g clip-path="url(#school-logo-ribbon)">
+    <path fill="#0378ba" d="M31 0h196v112H31Z"/>
+    <path fill="#fd9c07" d="M0 0h168L0 168Z"/>
+    <path fill="#80b54a" d="M0 0h1.848023L161.848023 160H0Z"/>
+    <path fill="#e8380e" d="M0 0h59.301559L87.674791 28.373232 0 116.048023Z"/>
+    <!-- Extend the diagonal color cut beyond the ribbon; an early horizontal
+         cutoff here would leave a blue step at the inner edge. -->
+    <path fill="#80b54a" d="M124.5 43.5 168 0h7.7v94.7Z"/>
+    <path fill="#fd9c07" d="M175.7 56.35h-32.05L88 112h87.7Z"/>
+    <path fill="#e8380e" d="M175.7 56.35H227V112h-51.3Z"/>
+  </g>
+
+  <g fill="none" stroke="#8e8e8e" stroke-width="8" stroke-linecap="round">
+    <path d="M76.924791 57.1h21.5M87.674791 46.35v21.5"/>
+    <path d="M164.7 56.35h22"/>
+  </g>
+</svg>

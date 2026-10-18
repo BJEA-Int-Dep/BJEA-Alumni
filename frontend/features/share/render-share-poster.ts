@@ -81,8 +81,9 @@ async function drawPosterHeader(ctx: CanvasRenderingContext2D) {
   ctx.fillStyle = '#d9d6ce';
   ctx.fillRect(72, 160, 936, 2);
   try {
-    const logo = await loadImage('/school-logo.png');
-    ctx.drawImage(logo, 912, 55, 96, 78);
+    const logo = await loadImage('/school-logo.svg');
+    const logoHeight = 96 * logo.naturalHeight / logo.naturalWidth;
+    ctx.drawImage(logo, 912, 94 - logoHeight / 2, 96, logoHeight);
   } catch { /* The poster can still be saved without the logo. */ }
 }
 
