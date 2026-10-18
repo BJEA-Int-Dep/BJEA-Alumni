@@ -6,7 +6,7 @@ import type { Experience } from '../../../shared/experience';
 import { AvatarSection } from './avatar-section';
 import { answersFor, validateDraftForSave, type DraftProfile } from './draft';
 import { BasicSection, AboutSection, ThoughtsSection } from './profile-sections';
-import { emptyExperience, ExperienceSection } from './experience-section';
+import { emptyExperience, ExperienceSection, ExperienceTypeSelect, ExperienceVisibilityButton } from './experience-section';
 import { ProfilePreview } from './profile-preview';
 import { useNicknameSuggestions } from './use-nickname-suggestions';
 
@@ -21,10 +21,10 @@ interface Props {
 }
 
 type AddSection = 'about' | 'journey' | 'thoughts' | 'avatar';
-type Section = Exclude<AddSection, 'journey'> | `experience:${string}`;
+type Section = Exclude<AddSection, 'journey'> | `experience:${string}` | `pending:${string}`;
 const labels: Record<AddSection, string> = {
   about: '关于我',
-  journey: '毕业后的经历',
+  journey: '经历',
   thoughts: '一些真心话',
   avatar: '我的 AI 头像',
 };
@@ -73,6 +73,10 @@ export function OnboardingFlow({
 
   const removeSection = (section: Section) => {
     setSections((items) => items.filter((item) => item !== section));
+    if (section.startsWith('pending:')) {
+      setError('');
+      return;
+    }
     if (section.startsWith('experience:')) {
       patchDraft({ experiences: draft.experiences.filter((item) => item.id !== section.slice('experience:'.length)) });
       return;
@@ -87,6 +91,10 @@ export function OnboardingFlow({
   };
 
   const save = () => {
+    if (sections.some((section) => section.startsWith('pending:'))) {
+      setError('请先选择经历类型，或移除未完成的经历。');
+      return;
+    }
     const validationError = validateDraftForSave(draft);
     if (validationError) {
       setError(validationError);
@@ -109,13 +117,25 @@ export function OnboardingFlow({
     }
   };
 
+  const selectExperienceType = (section: Section, type: Experience['type']) => {
+    if (section.startsWith('pending:')) {
+      const id = section.slice('pending:'.length);
+      patchDraft({ experiences: [...draft.experiences, emptyExperience(type, id)] });
+      setSections((current) => current.map((item) => item === section ? `experience:${id}` as const : item));
+    } else if (section.startsWith('experience:')) {
+      const id = section.slice('experience:'.length);
+      patchDraft({ experiences: draft.experiences.map((item) => item.id === id && item.type !== type
+        ? { ...item, type, degree: type === 'education' ? 'bachelor' : '' } : item) });
+    }
+  };
+
   const addSection = (section: AddSection) => {
     if (section === 'journey') {
-      if (draft.experiences.length >= 15) return;
-      const item = emptyExperience();
-      patchDraft({ experiences: [...draft.experiences, item] });
-      setSections((current) => [...current, `experience:${item.id}`]);
-      setNewExperienceId(item.id);
+      if (draft.experiences.length + sections.filter((item) => item.startsWith('pending:')).length >= 15) return;
+      const id = crypto.randomUUID();
+      setSections((current) => [...current, `pending:${id}`]);
+      setNewExperienceId(id);
+      setError('');
     } else {
       setSections((current) => [...current, section]);
     }
@@ -143,10 +163,17 @@ export function OnboardingFlow({
 
           {sections.map((section) => {
             const experienceId = section.startsWith('experience:') ? section.slice('experience:'.length) : null;
-            return <section key={section} ref={experienceId === newExperienceId ? newExperienceRef : undefined} className="scroll-mt-24 rounded-[28px] bg-[#fffaf1] p-5 shadow-[0_12px_35px_rgba(57,47,33,0.06)] sm:p-8">
-              <div className="mb-5 flex items-center justify-between">
-                <h2 className="text-xl font-black">{experienceId ? `${labels.journey} ${draft.experiences.findIndex((item) => item.id === experienceId) + 1}` : labels[section as Exclude<AddSection, 'journey'>]}</h2>
-                <Button variant="ghost" size="sm" onClick={() => removeSection(section)}><Trash2 className="size-4" /> 移除</Button>
+            const pendingId = section.startsWith('pending:') ? section.slice('pending:'.length) : null;
+            const experience = experienceId ? draft.experiences.find((item) => item.id === experienceId) : null;
+            return <section key={section} ref={experienceId === newExperienceId || pendingId === newExperienceId ? newExperienceRef : undefined} className="scroll-mt-24 rounded-[28px] bg-[#fffaf1] p-5 shadow-[0_12px_35px_rgba(57,47,33,0.06)] sm:p-8">
+              <div className={`${pendingId ? '' : 'mb-5'} flex items-center justify-between gap-2`}>
+                <h2 className="min-w-0 text-lg font-black sm:text-xl">{experience || pendingId ? <ExperienceTypeSelect type={experience?.type} onSelect={(type) => selectExperienceType(section, type)} /> : labels[section as Exclude<AddSection, 'journey'>]}</h2>
+                <div className="flex shrink-0 items-center gap-1">
+                  {experience ? <ExperienceVisibilityButton isPublic={experience.isPublic} onToggle={() => patchDraft({
+                    experiences: draft.experiences.map((item) => item.id === experience.id ? { ...item, isPublic: !item.isPublic } : item),
+                  })} /> : null}
+                  <Button variant="ghost" size="sm" onClick={() => removeSection(section)} aria-label="移除这个板块"><Trash2 className="size-4" /><span className="hidden sm:inline">移除</span></Button>
+                </div>
               </div>
               {sectionContent(section)}
             </section>;
@@ -157,7 +184,7 @@ export function OnboardingFlow({
             {showAdd && (
               <div className="mt-4 grid gap-2 sm:grid-cols-2">
                 {sectionNames.filter((section) => section === 'journey' || !sections.includes(section)).map((section) => (
-                  <button key={section} type="button" onClick={() => addSection(section)} disabled={section === 'journey' && draft.experiences.length >= 15} className="rounded-xl border border-black/10 bg-white p-4 text-left text-sm font-bold disabled:opacity-50"><Plus className="mr-2 inline size-4" />{labels[section]}</button>
+                  <button key={section} type="button" onClick={() => addSection(section)} disabled={section === 'journey' && draft.experiences.length + sections.filter((item) => item.startsWith('pending:')).length >= 15} className="rounded-xl border border-black/10 bg-white p-4 text-left text-sm font-bold disabled:opacity-50"><Plus className="mr-2 inline size-4" />{labels[section]}</button>
                 ))}
               </div>
             )}

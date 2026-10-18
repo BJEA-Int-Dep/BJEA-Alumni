@@ -1,20 +1,53 @@
+import { ChevronDown, Eye, Lock } from 'lucide-react';
 import type { Experience } from '../../../shared/experience';
 import { degreeLabels, experienceTypeLabels } from '../../../shared/experience';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 
-export const emptyExperience = (): Experience => ({
-  id: crypto.randomUUID(),
-  type: 'education',
-  degree: 'bachelor',
+export const emptyExperience = (type: Experience['type'] = 'education', id: string = crypto.randomUUID()): Experience => ({
+  id,
+  type,
+  degree: type === 'education' ? 'bachelor' : '',
   title: '',
   organization: '',
   location: '',
   startDate: '',
   endDate: '',
   current: true,
+  isPublic: true,
   description: '',
 });
+
+export function ExperienceTypeSelect({ type, onSelect }: {
+  type?: Experience['type'];
+  onSelect: (type: Experience['type']) => void;
+}) {
+  return (
+    <label className="relative inline-flex min-w-0 max-w-full cursor-pointer items-center gap-1 rounded-md focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[#1680bd]">
+      <span className="min-w-0 break-words">经历{type ? `·${experienceTypeLabels[type]}` : ''}</span>
+      <ChevronDown className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+      <select aria-label={type ? `更改经历类型，当前为${experienceTypeLabels[type]}` : '选择经历类型'} value={type ?? ''} onChange={(event) => onSelect(event.target.value as Experience['type'])} className="absolute inset-0 h-full w-full cursor-pointer opacity-0">
+        <option value="" disabled>请选择经历类型</option>
+        {(Object.keys(experienceTypeLabels) as Experience['type'][]).map((type) => <option key={type} value={type}>{experienceTypeLabels[type]}</option>)}
+      </select>
+    </label>
+  );
+}
+
+export function ExperienceVisibilityButton({ isPublic, onToggle }: { isPublic: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      aria-label={isPublic ? '将这段经历设为仅自己可见' : '将这段经历设为公开'}
+      aria-pressed={isPublic}
+      onClick={onToggle}
+      className={`inline-flex min-h-8 items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1680bd] ${isPublic ? 'bg-[#e8f3f8] text-[#17648e]' : 'bg-[#eceae5] text-[#666b6e]'}`}
+    >
+      {isPublic ? <Eye className="size-3" /> : <Lock className="size-3" />}
+      {isPublic ? '公开' : '仅自己'}
+    </button>
+  );
+}
 
 export function ExperienceSection({ experience: item, onChange }: {
   experience: Experience;
@@ -28,14 +61,6 @@ export function ExperienceSection({ experience: item, onChange }: {
   return (
     <div className="grid gap-4">
       <div className="grid gap-4 sm:grid-cols-2">
-        <label className="grid gap-2 text-sm font-bold">类型
-          <select value={item.type} onChange={(event) => {
-            const type = event.target.value as Experience['type'];
-            onChange({ type, degree: type === 'education' ? 'bachelor' : '' });
-          }} className="h-12 rounded-xl border border-black/10 bg-white px-3">
-            {(Object.keys(experienceTypeLabels) as Experience['type'][]).map((type) => <option key={type} value={type}>{experienceTypeLabels[type]}</option>)}
-          </select>
-        </label>
         {item.type === 'education' ? <label className="grid gap-2 text-sm font-bold">阶段
           <select value={item.degree} onChange={(event) => onChange({ degree: event.target.value as Experience['degree'] })} className="h-12 rounded-xl border border-black/10 bg-white px-3">
             <option value="">继续深造 / 未注明</option>

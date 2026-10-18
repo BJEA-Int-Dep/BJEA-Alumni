@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { OnboardingFlow } from '@/features/onboarding/onboarding-flow';
 import { draftToProfile } from '@/features/onboarding/draft';
+import { publishedProfileDraft } from '../shared/account';
 import { useAlumniController } from '@/features/app/use-alumni-controller';
 import { HomeView } from '@/pages/home';
 import { ProfileView } from '@/pages/profile';
@@ -97,6 +98,7 @@ export default function AlumniApp() {
         <div key={view === 'detail' ? `detail-${selectedProfile!.id}` : 'complete'} className="page-enter">
           <ProfileView
             profile={view === 'complete' ? draftToProfile(draft) : selectedProfile!}
+            shareProfile={view === 'complete' ? draftToProfile(publishedProfileDraft(draft)) : undefined}
             isOwner={view === 'complete'}
             isOwnProfile={view === 'detail' && selectedProfile?.id === `member-${authUser?.id}`}
             publicProfile={view === 'complete' && Boolean(authUser?.preferences.publicProfile)}

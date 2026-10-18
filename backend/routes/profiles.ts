@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { canPublishProfile, profileDraftSchema } from '../../shared/account.ts';
+import { canPublishProfile, profileDraftSchema, publishedProfileDraft } from '../../shared/account.ts';
 import { currentUser, requireUser } from '../auth.ts';
 import { ApiError } from '../errors.ts';
 import type { ApiContext } from './context.ts';
@@ -30,7 +30,7 @@ export async function handleProfilesRequest(context: ApiContext): Promise<boolea
       try {
         const draft = profileDraftSchema.parse(JSON.parse(row.draft_json));
         if (!canPublishProfile(draft)) return [];
-        return [{ id: `member-${row.user_id}`, draft }];
+        return [{ id: `member-${row.user_id}`, draft: publishedProfileDraft(draft) }];
       } catch {
         return [];
       }
@@ -42,7 +42,7 @@ export async function handleProfilesRequest(context: ApiContext): Promise<boolea
       try {
         const draft = profileDraftSchema.parse(JSON.parse(row.draft_json));
         if (!canPublishProfile(draft)) return [];
-        return [{ id: `example-${row.id}`, draft, example: true }];
+        return [{ id: `example-${row.id}`, draft: publishedProfileDraft(draft), example: true }];
       } catch {
         return [];
       }

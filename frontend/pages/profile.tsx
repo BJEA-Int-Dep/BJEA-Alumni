@@ -4,7 +4,6 @@ import {
   BookOpen,
   Briefcase,
   Check,
-  Eye,
   GraduationCap,
   Lock,
   LogOut,
@@ -27,6 +26,7 @@ import { experienceLabel, experiencePeriod, sortExperiences } from '../../shared
 
 interface ProfileViewProps {
   profile: AlumniProfile;
+  shareProfile?: AlumniProfile;
   isOwner?: boolean;
   isOwnProfile?: boolean;
   publicProfile?: boolean;
@@ -44,21 +44,9 @@ interface ProfileViewProps {
   onLogin?: () => void;
 }
 
-function PrivacyBadge({ isPublic }: { isPublic: boolean }) {
-  return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-black ${
-        isPublic ? 'bg-[#e8f3f8] text-[#17648e]' : 'bg-[#eceae5] text-[#666b6e]'
-      }`}
-    >
-      {isPublic ? <Eye className="size-3" /> : <Lock className="size-3" />}
-      {isPublic ? '公开' : '仅自己'}
-    </span>
-  );
-}
-
 export function ProfileView({
   profile,
+  shareProfile,
   isOwner = false,
   isOwnProfile = false,
   publicProfile = false,
@@ -195,14 +183,10 @@ export function ProfileView({
             </h2>
 
             <div className="mt-6 rounded-2xl border border-black/[0.07] bg-[#fcfaf5] px-4 sm:px-6">
-              <div className="flex items-center justify-between gap-3 py-4">
-                <p className="flex items-center gap-2 text-sm font-bold"><GraduationCap className="size-4 text-muted-foreground" /> 高中毕业于 {profile.year} 年</p>
-                {isOwner ? <PrivacyBadge isPublic={publicProfile} /> : null}
-              </div>
+              <p className="flex items-center gap-2 py-4 text-sm font-bold"><GraduationCap className="size-4 text-muted-foreground" /> 高中毕业于 {profile.year} 年</p>
               {experiences.length ? <div className="border-t border-black/[0.07] py-5">
                 <div className="mb-5 flex items-center justify-between gap-2">
-                  <h3 className="font-black">毕业后的经历</h3>
-                  {isOwner ? <PrivacyBadge isPublic={publicProfile} /> : null}
+                  <h3 className="font-black">经历</h3>
                 </div>
                 <ol className="grid gap-0">
                   {experiences.map((experience, index) => {
@@ -230,27 +214,17 @@ export function ProfileView({
 
             <div className="mt-8 grid gap-8 sm:grid-cols-2 sm:gap-10">
               {profile.reflection ? <section>
-                <div className="flex items-center justify-between gap-2">
-                  <p className="flex items-center gap-2 text-xs font-black text-muted-foreground">
-                    <MessageCircle className="size-4" /> 一点真心话
-                  </p>
-                  {isOwner ? (
-                    <PrivacyBadge isPublic={publicProfile} />
-                  ) : null}
-                </div>
+                <p className="flex items-center gap-2 text-xs font-black text-muted-foreground">
+                  <MessageCircle className="size-4" /> 一点真心话
+                </p>
                 <p className="mt-3 text-lg font-black leading-8">
                   {profile.reflection}
                 </p>
               </section> : null}
               {profile.advice ? <section>
-                <div className="flex items-center justify-between gap-2">
-                  <p className="flex items-center gap-2 text-xs font-black text-muted-foreground">
-                    <Sparkles className="size-4" /> 给学弟学妹的话
-                  </p>
-                  {isOwner ? (
-                    <PrivacyBadge isPublic={publicProfile} />
-                  ) : null}
-                </div>
+                <p className="flex items-center gap-2 text-xs font-black text-muted-foreground">
+                  <Sparkles className="size-4" /> 给学弟学妹的话
+                </p>
                 <blockquote className="mt-3 border-l-4 border-[#f6a624] pl-4 text-lg font-black leading-8">
                   “{profile.advice}”
                 </blockquote>
@@ -301,7 +275,7 @@ export function ProfileView({
       <SharePosterDialog
         open={shareOpen}
         onOpenChange={setShareOpen}
-        profile={profile}
+        profile={shareProfile ?? profile}
         profileUrl={shareProfileUrl}
         siteUrl={`${window.location.origin}/`}
       />

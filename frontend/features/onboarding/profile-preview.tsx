@@ -17,7 +17,7 @@ const toneLabels: Record<Tone, string> = {
 };
 
 export function ProfilePreview({ draft, onToneChange }: { draft: DraftProfile; onToneChange: (tone: Tone) => void }) {
-  const experience = primaryExperience(draft.experiences);
+  const experience = primaryExperience(draft.experiences.filter((item) => item.isPublic));
   const status = experience ? experienceLabel(experience) : '';
   return <aside className="lg:sticky lg:top-24">
     <div className="mb-2 flex items-center justify-between px-1"><span className="text-xs font-black text-muted-foreground">PROFILE 预览</span><span className="text-xs font-bold text-[#4b8c45]">实时更新</span></div>

@@ -15,6 +15,7 @@ export const experienceSchema = z.object({
   startDate: experienceDateSchema,
   endDate: experienceDateSchema,
   current: z.boolean(),
+  isPublic: z.boolean().default(true),
   description: z.string().max(500),
 }).refine((item) => {
   if (item.current || !item.startDate || !item.endDate) return true;
@@ -91,7 +92,7 @@ export function legacyExperiences(draft: {
     title: draft.direction || draft.statusCustom || defaultTitle,
     organization: type === 'education' || type === 'work' ? draft.place : '',
     location: type === 'education' || type === 'work' ? '' : draft.place,
-    startDate: '', endDate: '', current: true,
+    startDate: '', endDate: '', current: true, isPublic: true,
     description: draft.statusId === 'postgrad' ? '读研 / 继续深造' :
       draft.statusId === 'independent' ? '创业 / 自由职业' :
       draft.statusId === 'other' && draft.direction ? draft.statusCustom : '',

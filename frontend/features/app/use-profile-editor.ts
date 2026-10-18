@@ -1,5 +1,5 @@
 import { useState, type Dispatch, type SetStateAction } from 'react';
-import type { AccountUser, PublicProfilePayload } from '../../../shared/account';
+import { publishedProfileDraft, type AccountUser, type PublicProfilePayload } from '../../../shared/account';
 import { createDefaultDraft, draftToProfile, validateDraftForSave, type DraftProfile } from '@/features/onboarding/draft';
 import { apiRequest } from '@/lib/api';
 import type { AlumniProfile } from '@/lib/alumni-data';
@@ -52,7 +52,7 @@ export function useProfileEditor(
         '/api/profile/me',
         { method: 'PUT', body: JSON.stringify(draft) },
       );
-      const profile = profileFromPayload(result.profile);
+      const profile = profileFromPayload({ ...result.profile, draft: publishedProfileDraft(result.profile.draft) });
       setProfiles((current) => result.published
         ? [profile, ...current.filter((item) => item.id !== profile.id)]
         : current.filter((item) => item.id !== profile.id));
@@ -77,7 +77,7 @@ export function useProfileEditor(
         body: JSON.stringify({ ...authUser.preferences, publicProfile }),
       });
       setAuthUser(result.user);
-      const profile = { ...draftToProfile(savedDraft), id: `member-${result.user.id}` };
+      const profile = { ...draftToProfile(publishedProfileDraft(savedDraft)), id: `member-${result.user.id}` };
       setProfiles((current) => publicProfile
         ? [profile, ...current.filter((item) => item.id !== profile.id)]
         : current.filter((item) => item.id !== profile.id));

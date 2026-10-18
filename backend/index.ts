@@ -7,7 +7,7 @@ import { loadEnvFile } from 'node:process';
 import { pathToFileURL } from 'node:url';
 import { z } from 'zod';
 import { handleAdminRequest } from './admin.ts';
-import { canPublishProfile, profileDraftSchema } from '../shared/account.ts';
+import { canPublishProfile, profileDraftSchema, publishedProfileDraft } from '../shared/account.ts';
 import { generatedAvatarPath } from '../shared/avatar.ts';
 import { openDatabase, type AppDatabase } from './database.ts';
 import { suggestNicknames } from './nicknames.ts';
@@ -95,7 +95,7 @@ export function createApiServer(
     if (example) row = database.prepare('SELECT draft_json FROM example_profiles WHERE id = ?').get(example[1]) as { draft_json: string } | undefined;
     if (!row) return null;
     const parsed = profileDraftSchema.safeParse(JSON.parse(row.draft_json));
-    return parsed.success && canPublishProfile(parsed.data) ? parsed.data : null;
+    return parsed.success && canPublishProfile(parsed.data) ? publishedProfileDraft(parsed.data) : null;
   }
 
   function commentAvatar(draft: ReturnType<typeof savedDraft>) {

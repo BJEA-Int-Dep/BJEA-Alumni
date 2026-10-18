@@ -76,6 +76,17 @@ export const profileDraftSchema = z.object({
 
 export type PersistedProfileDraft = z.infer<typeof profileDraftSchema>;
 
+export function publishedProfileDraft(draft: PersistedProfileDraft): PersistedProfileDraft {
+  return {
+    ...draft,
+    statusId: '',
+    statusCustom: '',
+    place: '',
+    direction: '',
+    experiences: draft.experiences.filter((experience) => experience.isPublic),
+  };
+}
+
 export const accountPreferencesSchema = z
   .object({
     notifyMajorEvents: z.boolean(),
