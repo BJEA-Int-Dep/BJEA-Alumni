@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
-import { canPublishProfile, profileDraftSchema } from '../../shared/account.ts';
+import { canPublishProfile, profileDraftSchema, profileToneSchema } from '../../shared/account.ts';
 import { avatarConceptRequestSchema, avatarRecipeSchema, generatedAvatarIdSchema } from '../../shared/avatar.ts';
 import { currentUser, requireUser } from '../auth.ts';
 import { suggestAvatarConcepts } from '../avatar-concepts.ts';
@@ -70,7 +70,7 @@ export function createAvatarRoutes() {
       const user = requireUser(database, req);
       const input = parsedBody(z.object({
         recipe: avatarRecipeSchema,
-        tone: profileDraftSchema.shape.tone,
+        tone: profileToneSchema,
         refresh: z.boolean().default(false),
       }).strict(), await readBody(req));
       if (!input.recipe.subject.trim()) throw new ApiError(400, '请先填写头像主体。');

@@ -1,10 +1,11 @@
 import { useCallback, useState, type Dispatch, type SetStateAction } from 'react';
-import { House, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { emptyAvatar, type AvatarState } from '../../../shared/avatar';
 import { AvatarSection } from './avatar-section';
 import { answersFor, validateDraftForSave, type DraftProfile } from './draft';
-import { BasicSection, AboutSection, JourneySection, ThoughtsSection } from './profile-sections';
+import { BasicSection, AboutSection, ThoughtsSection } from './profile-sections';
+import { ExperienceSection } from './experience-section';
 import { ProfilePreview } from './profile-preview';
 import { useNicknameSuggestions } from './use-nickname-suggestions';
 
@@ -21,7 +22,7 @@ interface Props {
 type Section = 'about' | 'journey' | 'thoughts' | 'avatar';
 const labels: Record<Section, string> = {
   about: '关于我',
-  journey: '现在的阶段与方向',
+  journey: '毕业后的经历',
   thoughts: '一些真心话',
   avatar: '我的 AI 头像',
 };
@@ -31,7 +32,7 @@ function initialSections(draft: DraftProfile): Section[] {
   return sectionNames.filter((section) => {
     switch (section) {
       case 'about': return Boolean(draft.personalityTraits?.length || draft.personalityCustom || draft.summary);
-      case 'journey': return Boolean(draft.statusId || draft.place || draft.direction);
+      case 'journey': return draft.experiences.length > 0;
       case 'thoughts': return Boolean(draft.reflection || draft.advice);
       case 'avatar': return Boolean(draft.avatar?.recipe?.subject);
     }
@@ -68,7 +69,7 @@ export function OnboardingFlow({
     setSections((items) => items.filter((item) => item !== section));
     switch (section) {
       case 'about': patchDraft({ personalityTraits: [], personalityCustom: '', summary: '' }); break;
-      case 'journey': patchDraft({ statusId: '', statusCustom: '', place: '', direction: '' }); break;
+      case 'journey': patchDraft({ experiences: [] }); break;
       case 'thoughts': patchDraft({ reflection: '', advice: '' }); break;
       case 'avatar': patchDraft({
         avatar: { ...(draft.avatar ?? emptyAvatar()), recipe: undefined, generatedAssetId: undefined, adoptedRecipe: undefined },
@@ -88,7 +89,7 @@ export function OnboardingFlow({
   const sectionContent = (section: Section) => {
     switch (section) {
       case 'about': return <AboutSection draft={draft} patchDraft={patchDraft} />;
-      case 'journey': return <JourneySection draft={draft} patchDraft={patchDraft} />;
+      case 'journey': return <ExperienceSection draft={draft} patchDraft={patchDraft} />;
       case 'thoughts': return <ThoughtsSection draft={draft} patchDraft={patchDraft} />;
       case 'avatar': return <AvatarSection draft={draft} onDraftChange={onDraftChange} savedAvatar={savedAvatar} />;
     }
@@ -98,7 +99,7 @@ export function OnboardingFlow({
     <main className="min-h-screen bg-[#f4f1e9] pb-16 text-foreground">
       <header className="sticky top-0 z-30 border-b border-black/[0.06] bg-[#f4f1e9]/95 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:px-8">
-          <Button variant="ghost" size="icon-lg" onClick={onExit} aria-label="返回首页"><House className="size-5" /></Button>
+          <Button variant="ghost" size="icon-lg" onClick={onExit} aria-label="返回"><ArrowLeft className="size-5" /></Button>
           <div><p className="font-black">编辑我的 Profile</p><p className="text-xs text-muted-foreground">先填写昵称和毕业年份，其他板块随时添加</p></div>
         </div>
       </header>

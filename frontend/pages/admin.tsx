@@ -13,6 +13,7 @@ import type {
   AdminStudent,
 } from '../../shared/admin';
 import type { PersistedProfileDraft } from '../../shared/account';
+import { experienceLabel, primaryExperience } from '../../shared/experience';
 import { generatedAvatarPath } from '../../shared/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -26,8 +27,8 @@ import { Input } from '@/components/ui/input';
 import { apiRequest, readApiResponse } from '@/lib/api';
 import { ProfileAvatar } from '@/features/avatar/profile-avatar';
 import { ProfilePreview } from '@/features/onboarding/profile-preview';
-import { AboutSection, JourneySection, ThoughtsSection } from '@/features/onboarding/profile-sections';
-import { STATUS_OPTIONS } from '@/features/onboarding/options';
+import { AboutSection, ThoughtsSection } from '@/features/onboarding/profile-sections';
+import { ExperienceSection } from '@/features/onboarding/experience-section';
 
 const inputClass =
   'h-11 rounded-lg border-black/10 bg-white text-sm font-medium text-foreground';
@@ -56,6 +57,11 @@ function formatDate(value: number) {
 
 function statusLabel(status: AccountStatus) {
   return status === 'active' ? '正常' : '已停用';
+}
+
+function experienceSummary(draft: PersistedProfileDraft | null) {
+  const experience = draft && primaryExperience(draft.experiences);
+  return experience ? `${experienceLabel(experience)} · ${experience.title}` : '—';
 }
 
 export function AdminPage() {
@@ -121,8 +127,7 @@ export function AdminPage() {
         student.email,
         student.draft?.nickname,
         student.draft?.year,
-        student.draft?.place,
-        student.draft?.direction,
+        ...(student.draft?.experiences.flatMap((item) => [item.title, item.organization, item.location, item.description]) ?? []),
       ].some((value) => value?.toLocaleLowerCase('zh-CN').includes(key)),
     );
   }, [query, students]);
@@ -390,7 +395,7 @@ export function AdminPage() {
             <Input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="搜索姓名、昵称、邮箱、年份或方向"
+              placeholder="搜索姓名、昵称、邮箱、年份或经历"
               className="h-10 rounded-xl border-black/10 bg-white pl-9"
             />
           </label>
@@ -416,7 +421,7 @@ export function AdminPage() {
                 <th className="px-4 py-3 font-bold">邮箱</th>
                 <th className="px-4 py-3 font-bold">公开</th>
                 <th className="px-4 py-3 font-bold">毕业年份</th>
-                <th className="px-4 py-3 font-bold">当前阶段</th>
+                <th className="px-4 py-3 font-bold">最近经历</th>
                 <th className="px-4 py-3 font-bold">账号状态</th>
                 <th className="px-4 py-3 font-bold">更新时间</th>
                 <th className="px-4 py-3 font-bold" />
@@ -449,9 +454,7 @@ export function AdminPage() {
                   </td>
                   <td className="px-4 py-3">{student.draft?.year || '—'}</td>
                   <td className="px-4 py-3">
-                    {STATUS_OPTIONS.find((option) => option.id === student.draft?.statusId)?.label ||
-                      student.draft?.statusCustom ||
-                      '—'}
+                    {experienceSummary(student.draft)}
                   </td>
                   <td className="px-4 py-3">
                     <span
@@ -550,9 +553,9 @@ export function AdminPage() {
                         <AboutSection draft={editing.draft} patchDraft={updateDraft} />
                       </section>
                       <section className="rounded-2xl bg-[#fffaf1] p-5 shadow-sm">
-                        <h2 className="mb-1 text-lg font-black">我的现状</h2>
-                        <p className="mb-4 text-xs text-muted-foreground">以下内容都可以留空。</p>
-                        <JourneySection draft={editing.draft} patchDraft={updateDraft} />
+                        <h2 className="mb-1 text-lg font-black">毕业后的经历</h2>
+                        <p className="mb-4 text-xs text-muted-foreground">可以添加多段学习、工作和探索经历。</p>
+                        <ExperienceSection draft={editing.draft} patchDraft={updateDraft} />
                       </section>
                       <section className="rounded-2xl bg-[#fffaf1] p-5 shadow-sm">
                         <h2 className="mb-1 text-lg font-black">一些想法</h2>

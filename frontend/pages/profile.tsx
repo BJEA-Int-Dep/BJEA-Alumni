@@ -22,10 +22,8 @@ import { ProfileAvatar } from '@/features/avatar/profile-avatar';
 import { ProfileComments } from '@/features/comments/profile-comments';
 import { SharePosterDialog } from '@/features/share/share-poster-dialog';
 import { TONE_CLASSES, type AlumniProfile } from '@/lib/alumni-data';
+import { experienceLabel, experiencePeriod, sortExperiences } from '../../shared/experience';
 
-type VisibilityField = 'year' | 'place' | 'direction' | 'reflection' | 'advice';
-
-type VisibilityState = Record<VisibilityField, boolean>;
 
 interface ProfileViewProps {
   profile: AlumniProfile;
@@ -78,35 +76,7 @@ export function ProfileView({
   onLogin,
 }: ProfileViewProps) {
   const [shareOpen, setShareOpen] = useState(false);
-  const visibility: VisibilityState = {
-    year: true,
-    place: true,
-    direction: true,
-    reflection: true,
-    advice: true,
-  };
-
-  const detailRows: Array<{
-    key: VisibilityField | 'status';
-    icon: typeof GraduationCap;
-    label: string;
-    value: string;
-  }> = [
-    {
-      key: 'year',
-      icon: GraduationCap,
-      label: '毕业那年',
-      value: `${profile.year} 届`,
-    },
-    { key: 'status', icon: Briefcase, label: '现在', value: profile.status },
-    { key: 'place', icon: MapPin, label: '后来去了', value: profile.place },
-    {
-      key: 'direction',
-      icon: BookOpen,
-      label: '目前方向',
-      value: profile.direction,
-    },
-  ];
+  const experiences = sortExperiences(profile.experiences);
 
   return (
     <main className="min-h-screen bg-background pb-16 text-foreground">
@@ -176,6 +146,14 @@ export function ProfileView({
             </div>
             {visibilitySaving ? <p role="status" className="mt-3 text-xs text-[#52714e]">正在保存公开设置…</p> : null}
             {visibilityError ? <p role="alert" className="mt-3 text-xs font-bold text-destructive">{visibilityError}</p> : null}
+            <div className="mt-4 flex gap-2 sm:justify-end">
+              <Button variant="outline" onClick={onEdit} className="h-10 flex-1 rounded-xl border-black/10 bg-white px-4 font-black sm:flex-none">
+                <Pencil className="size-4" /> 继续修改
+              </Button>
+              <Button onClick={() => setShareOpen(true)} className="h-10 flex-1 rounded-xl bg-[#24282c] px-4 font-black text-white hover:bg-black sm:flex-none">
+                <Share2 className="size-4" /> 分享
+              </Button>
+            </div>
           </section>
         ) : null}
 
@@ -216,28 +194,38 @@ export function ProfileView({
               后来的人生轨迹
             </h2>
 
-            <div className="mt-6 divide-y divide-black/[0.07] rounded-2xl border border-black/[0.07] bg-[#fcfaf5] px-4 sm:px-6">
-              {detailRows.filter((row) => row.value).map((row) => {
-                const Icon = row.icon;
-                const isPublic =
-                  row.key === 'status' ? true : publicProfile && visibility[row.key];
-                return (
-                  <div
-                    key={row.key}
-                    className="grid gap-2 py-4 sm:grid-cols-[150px_1fr_auto] sm:items-center sm:gap-4"
-                  >
-                    <div className="flex items-center gap-2 text-xs font-black text-muted-foreground">
-                      <Icon className="size-4" /> {row.label}
-                    </div>
-                    <p className="text-sm font-bold leading-6 sm:text-base">
-                      {row.value}
-                    </p>
-                    {isOwner && row.key !== 'status' ? (
-                      <PrivacyBadge isPublic={isPublic} />
-                    ) : null}
-                  </div>
-                );
-              })}
+            <div className="mt-6 rounded-2xl border border-black/[0.07] bg-[#fcfaf5] px-4 sm:px-6">
+              <div className="flex items-center justify-between gap-3 py-4">
+                <p className="flex items-center gap-2 text-sm font-bold"><GraduationCap className="size-4 text-muted-foreground" /> 高中毕业于 {profile.year} 年</p>
+                {isOwner ? <PrivacyBadge isPublic={publicProfile} /> : null}
+              </div>
+              {experiences.length ? <div className="border-t border-black/[0.07] py-5">
+                <div className="mb-5 flex items-center justify-between gap-2">
+                  <h3 className="font-black">毕业后的经历</h3>
+                  {isOwner ? <PrivacyBadge isPublic={publicProfile} /> : null}
+                </div>
+                <ol className="grid gap-0">
+                  {experiences.map((experience, index) => {
+                    const Icon = experience.type === 'education' ? BookOpen : Briefcase;
+                    const period = experiencePeriod(experience);
+                    return <li key={experience.id} className="relative flex gap-4 pb-7 last:pb-0">
+                      {index < experiences.length - 1 ? <span className="absolute left-[19px] top-10 bottom-0 w-px bg-[#dcded9]" /> : null}
+                      <span className="relative z-10 grid size-10 shrink-0 place-items-center rounded-full bg-[#e8f3f8] text-[#17648e]"><Icon className="size-4" /></span>
+                      <div className="min-w-0 flex-1 pt-0.5">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="rounded-full bg-[#edf5e6] px-2.5 py-1 text-xs font-black text-[#3e7740]">{experienceLabel(experience)}</span>
+                          {experience.current ? <span className="text-xs font-bold text-[#4f9445]">进行中</span> : null}
+                        </div>
+                        <h4 className="mt-2 text-base font-black sm:text-lg">{experience.title}</h4>
+                        {experience.organization ? <p className="mt-1 text-sm font-bold text-[#3c4246]">{experience.organization}</p> : null}
+                        {experience.location ? <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground"><MapPin className="size-3" />{experience.location}</p> : null}
+                        {period ? <p className="mt-1 text-xs text-muted-foreground">{period}</p> : null}
+                        {experience.description ? <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[#3c4246]">{experience.description}</p> : null}
+                      </div>
+                    </li>;
+                  })}
+                </ol>
+              </div> : null}
             </div>
 
             <div className="mt-8 grid gap-8 sm:grid-cols-2 sm:gap-10">
@@ -247,7 +235,7 @@ export function ProfileView({
                     <MessageCircle className="size-4" /> 一点真心话
                   </p>
                   {isOwner ? (
-                    <PrivacyBadge isPublic={publicProfile && visibility.reflection} />
+                    <PrivacyBadge isPublic={publicProfile} />
                   ) : null}
                 </div>
                 <p className="mt-3 text-lg font-black leading-8">
@@ -260,7 +248,7 @@ export function ProfileView({
                     <Sparkles className="size-4" /> 给学弟学妹的话
                   </p>
                   {isOwner ? (
-                    <PrivacyBadge isPublic={publicProfile && visibility.advice} />
+                    <PrivacyBadge isPublic={publicProfile} />
                   ) : null}
                 </div>
                 <blockquote className="mt-3 border-l-4 border-[#f6a624] pl-4 text-lg font-black leading-8">
@@ -272,17 +260,6 @@ export function ProfileView({
         </article>
 
         {commentProfileId && onLogin ? <ProfileComments profileId={commentProfileId} loggedIn={loggedIn} onLogin={onLogin} /> : null}
-
-        {isOwner ? (
-          <div className="mt-5 flex gap-2 rounded-2xl border border-[#64a94e]/25 bg-[#edf5e6] p-4 sm:justify-end">
-              <Button variant="outline" onClick={onEdit} className="h-10 flex-1 rounded-xl border-black/10 bg-white px-4 font-black sm:flex-none">
-                <Pencil className="size-4" /> 继续修改
-              </Button>
-              <Button onClick={() => setShareOpen(true)} className="h-10 flex-1 rounded-xl bg-[#24282c] px-4 font-black text-white hover:bg-black sm:flex-none">
-                <Share2 className="size-4" /> 分享
-              </Button>
-          </div>
-        ) : null}
 
         {!isOwner && !isOwnProfile ? <aside className="mt-6 rounded-[24px] border border-[#1680bd]/18 bg-[#eaf5fa] p-5 sm:flex sm:items-center sm:justify-between sm:gap-6 sm:p-6">
           <div className="flex items-start gap-3">

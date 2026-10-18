@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { canPublishProfile, profileDraftSchema } from '../../shared/account.ts';
+import { experienceLabel, primaryExperience } from '../../shared/experience.ts';
 import { currentUser, requireUser } from '../auth.ts';
 import { moderateComment } from '../moderate-comment.ts';
 import { ApiError } from '../errors.ts';
@@ -53,15 +54,22 @@ export async function handleCommentsRequest(context: ApiContext): Promise<boolea
           createdAt: row.created_at,
         };
       });
+      const currentExperience = primaryExperience(profile.experiences);
       const allowed = await moderateComment({
         comment: input.body,
         profile: {
           nickname: profile.nickname,
           year: profile.year,
           summary: profile.summary,
-          status: profile.statusId === 'other' ? profile.statusCustom : profile.statusId,
-          place: profile.place,
-          direction: profile.direction,
+          status: currentExperience ? experienceLabel(currentExperience) : '',
+          place: currentExperience?.organization || currentExperience?.location || '',
+          direction: currentExperience?.title || '',
+          experiences: profile.experiences.map((experience) => ({
+            label: experienceLabel(experience),
+            title: experience.title,
+            organization: experience.organization,
+            description: experience.description,
+          })),
           reflection: profile.reflection,
           advice: profile.advice,
           avatarSubject: (profile.avatar?.adoptedRecipe ?? profile.avatar?.recipe)?.subject ?? '',

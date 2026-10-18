@@ -1,3 +1,5 @@
+import type { Experience } from '../../shared/experience';
+
 export type Tone =
   | 'sunset'
   | 'ocean'
@@ -9,6 +11,7 @@ export type Tone =
   | 'sky';
 
 export interface AlumniProfile {
+  experiences: Experience[];
   avatarImageUrl?: string;
   avatarLabel?: string;
   example?: boolean;

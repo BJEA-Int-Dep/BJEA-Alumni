@@ -2,7 +2,7 @@ import { Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { PERSONALITY_TRAITS, STATUS_OPTIONS } from './options';
+import { PERSONALITY_TRAITS } from './options';
 import type { DraftProfile } from './draft';
 
 type PatchDraft = (patch: Partial<DraftProfile>) => void;
@@ -69,23 +69,6 @@ export function AboutSection({ draft, patchDraft }: { draft: DraftProfile; patch
         一句话介绍自己
         <Textarea value={draft.summary} onChange={(event) => patchDraft({ summary: event.target.value })} maxLength={180} placeholder="例如：喜欢观察细节，也喜欢和朋友胡思乱想" className="min-h-20 rounded-xl bg-white" />
       </label>
-    </div>
-  );
-}
-
-export function JourneySection({ draft, patchDraft }: { draft: DraftProfile; patchDraft: PatchDraft }) {
-  return (
-    <div className="grid gap-4">
-      <label className="grid gap-2 text-sm font-bold">
-        现在的阶段
-        <select value={draft.statusId} onChange={(event) => patchDraft({ statusId: event.target.value as DraftProfile['statusId'] })} className="h-12 rounded-xl border border-black/10 bg-white px-3">
-          <option value="">可以不填</option>
-          {STATUS_OPTIONS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
-        </select>
-      </label>
-      {draft.statusId === 'other' && <label className="grid gap-2 text-sm font-bold">具体阶段<Input value={draft.statusCustom} onChange={(event) => patchDraft({ statusCustom: event.target.value })} maxLength={80} className="h-12 rounded-xl bg-white" /></label>}
-      <label className="grid gap-2 text-sm font-bold">现在在哪里 / 哪所学校<Input value={draft.place} onChange={(event) => patchDraft({ place: event.target.value })} maxLength={100} placeholder="例如：美国的 xxx 大学；也可以不公开" className="h-12 rounded-xl bg-white" /></label>
-      <label className="grid gap-2 text-sm font-bold">在学什么 / 做什么<Input value={draft.direction} onChange={(event) => patchDraft({ direction: event.target.value })} maxLength={100} placeholder="专业、工作、项目，或正在休息调整" className="h-12 rounded-xl bg-white" /></label>
     </div>
   );
 }

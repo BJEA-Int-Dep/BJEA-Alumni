@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type {
   AccountUser,
   AuthPayload,
@@ -33,6 +33,9 @@ export function useAlumniController() {
   const [authMode, setAuthMode] = useState<AuthMode>('login');
   const [createAfterAuth, setCreateAfterAuth] = useState(false);
   const [pendingExit, setPendingExit] = useState<ExitDestination | null>(null);
+  const editorReturnDestination = useRef<ExitDestination>({ path: '/', route: { view: 'home' } });
+  const homeScrollY = useRef(0);
+  const previousView = useRef<View | null>(null);
   const editor = useProfileEditor(authUser, setAuthUser, setProfiles);
   const { draft, setDraft, savedDraft, profileSaving, profileSaveError, setProfileSaveError,
     visibilitySaving, visibilityError, saveProfile, updateProfileVisibility } = editor;
@@ -105,12 +108,18 @@ export function useAlumniController() {
     );
 
     const handlePopState = () => {
-      const route = readRoute();
+      const actualRoute = readRoute();
+      const destination = view === 'create' && actualRoute.view !== 'create'
+        ? editorReturnDestination.current
+        : { path: currentPath(), route: actualRoute };
+      const { route } = destination;
       if (view === 'create' && route.view !== 'create' && hasUnsavedChanges) {
-        const path = currentPath();
         window.history.pushState({ alumniApp: true }, '', '/create');
-        setPendingExit({ path, route });
+        setPendingExit(destination);
         return;
+      }
+      if (currentPath() !== destination.path) {
+        window.history.replaceState({ alumniApp: true }, '', destination.path);
       }
       setAuthOpen(false);
       if ((route.view === 'complete' || route.view === 'create') && !authUser) {
@@ -127,12 +136,22 @@ export function useAlumniController() {
         setSelectedProfile(profile);
       }
       if (route.view === 'complete' && savedDraft) setDraft(savedDraft);
+      if (view === 'home' && route.view !== 'home') homeScrollY.current = window.scrollY;
       setView(route.view);
     };
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, [authUser, hasUnsavedChanges, initialRoute, profiles, savedDraft, view]);
+
+  useLayoutEffect(() => {
+    if (view === 'home' && previousView.current && previousView.current !== 'home') {
+      window.scrollTo(0, homeScrollY.current);
+    } else if (view === 'complete' || (view === 'detail' && selectedProfile)) {
+      window.scrollTo(0, 0);
+    }
+    previousView.current = view;
+  }, [view, selectedProfile?.id]);
 
   useEffect(() => {
     if (!hasUnsavedChanges) return;
@@ -145,16 +164,17 @@ export function useAlumniController() {
   }, [hasUnsavedChanges]);
 
   const navigate = (path: string, nextView: View) => {
+    if (view === 'home' && nextView !== 'home') homeScrollY.current = window.scrollY;
     window.history.pushState({ alumniApp: true }, '', path);
     setView(nextView);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const goHome = () => navigate('/', 'home');
 
   const requestExit = () => {
-    if (hasUnsavedChanges) setPendingExit({ path: '/', route: { view: 'home' } });
-    else goHome();
+    const destination = editorReturnDestination.current;
+    if (hasUnsavedChanges) setPendingExit(destination);
+    else leaveEditor(destination, false);
   };
 
   const leaveEditor = (destination: ExitDestination, saved: boolean) => {
@@ -168,10 +188,12 @@ export function useAlumniController() {
     }
     window.history.replaceState({ alumniApp: true }, '', destination.path);
     setView(destination.route.view);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const beginProfile = (profileDraft = savedDraft ?? createDefaultDraft()) => {
+    editorReturnDestination.current = view === 'complete'
+      ? { path: '/profile/my-profile', route: { view: 'complete' } }
+      : { path: '/', route: { view: 'home' } };
     editor.begin(profileDraft);
     navigate('/create', 'create');
   };

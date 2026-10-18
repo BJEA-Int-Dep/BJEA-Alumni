@@ -12,6 +12,7 @@ export interface CommentModerationContext {
     status: string;
     place: string;
     direction: string;
+    experiences: Array<{ label: string; title: string; organization: string; description: string }>;
     reflection: string;
     advice: string;
     avatarSubject: string;

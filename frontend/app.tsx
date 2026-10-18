@@ -61,15 +61,17 @@ export default function AlumniApp() {
   if (view === 'create') {
     return (
       <>
-        <OnboardingFlow
-          draft={draft}
-          onDraftChange={setDraft}
-          onExit={requestExit}
-          onComplete={completeProfile}
-          completing={profileSaving}
-          completionError={profileSaveError}
-          savedAvatar={savedDraft?.avatar}
-        />
+        <div key="create" className="page-enter">
+          <OnboardingFlow
+            draft={draft}
+            onDraftChange={setDraft}
+            onExit={requestExit}
+            onComplete={completeProfile}
+            completing={profileSaving}
+            completionError={profileSaveError}
+            savedAvatar={savedDraft?.avatar}
+          />
+        </div>
         <Dialog open={Boolean(pendingExit)} onOpenChange={(open) => { if (!open && !profileSaving) setPendingExit(null); }}>
           <DialogContent className="rounded-[24px] bg-[#fffaf1] p-6" showCloseButton={false}>
             <DialogHeader>
@@ -92,50 +94,54 @@ export default function AlumniApp() {
   if ((view === 'detail' && selectedProfile) || (view === 'complete' && authUser)) {
     return (
       <>
-      <ProfileView
-        profile={view === 'complete' ? draftToProfile(draft) : selectedProfile!}
-        isOwner={view === 'complete'}
-        isOwnProfile={view === 'detail' && selectedProfile?.id === `member-${authUser?.id}`}
-        publicProfile={view === 'complete' && Boolean(authUser?.preferences.publicProfile)}
-        visibilitySaving={visibilitySaving}
-        visibilityError={visibilityError}
-        onPublicProfileChange={(value) => void updateProfileVisibility(value)}
-        onBack={goHome}
-        onHome={goHome}
-        onCreate={requestCreate}
-        onEdit={() => beginProfile(savedDraft ?? draft)}
-        onLogout={() => void logout()}
-        shareProfileUrl={
-          view === 'detail' && selectedProfile
-            ? `${window.location.origin}/alumni/${encodeURIComponent(selectedProfile.id)}`
-            : authUser?.preferences.publicProfile
-              ? `${window.location.origin}/alumni/member-${authUser.id}`
-              : undefined
-        }
-        commentProfileId={view === 'detail' ? selectedProfile?.id : authUser?.preferences.publicProfile ? `member-${authUser.id}` : undefined}
-        loggedIn={Boolean(authUser)}
-        onLogin={() => openAuth('login')}
-      />
-      {authLayer}
+        <div key={view === 'detail' ? `detail-${selectedProfile!.id}` : 'complete'} className="page-enter">
+          <ProfileView
+            profile={view === 'complete' ? draftToProfile(draft) : selectedProfile!}
+            isOwner={view === 'complete'}
+            isOwnProfile={view === 'detail' && selectedProfile?.id === `member-${authUser?.id}`}
+            publicProfile={view === 'complete' && Boolean(authUser?.preferences.publicProfile)}
+            visibilitySaving={visibilitySaving}
+            visibilityError={visibilityError}
+            onPublicProfileChange={(value) => void updateProfileVisibility(value)}
+            onBack={goHome}
+            onHome={goHome}
+            onCreate={requestCreate}
+            onEdit={() => beginProfile(savedDraft ?? draft)}
+            onLogout={() => void logout()}
+            shareProfileUrl={
+              view === 'detail' && selectedProfile
+                ? `${window.location.origin}/alumni/${encodeURIComponent(selectedProfile.id)}`
+                : authUser?.preferences.publicProfile
+                  ? `${window.location.origin}/alumni/member-${authUser.id}`
+                  : undefined
+            }
+            commentProfileId={view === 'detail' ? selectedProfile?.id : authUser?.preferences.publicProfile ? `member-${authUser.id}` : undefined}
+            loggedIn={Boolean(authUser)}
+            onLogin={() => openAuth('login')}
+          />
+        </div>
+        {authLayer}
       </>
     );
   }
 
   return (
     <>
-      <HomeView
-        profiles={profiles}
-        limited={limitedProfiles}
-        accountName={authUser?.realName || (authUser ? '我的账号' : undefined)}
-        hasProfile={authUser?.hasProfile}
-        ownProfileId={authUser ? `member-${authUser.id}` : undefined}
-        ownProfile={savedDraft ? draftToProfile(savedDraft) : undefined}
-        onSelectProfile={openProfile}
-        onOwnProfile={openOwnProfile}
-        onRequestCreate={requestCreate}
-        onRegister={() => openAuth('register')}
-        onLogin={() => openAuth('login')}
-      />
+      <div key="home" className="page-enter">
+        <HomeView
+          profiles={profiles}
+          limited={limitedProfiles}
+          accountName={authUser?.realName || (authUser ? '我的账号' : undefined)}
+          hasProfile={authUser?.hasProfile}
+          ownProfileId={authUser ? `member-${authUser.id}` : undefined}
+          ownProfile={savedDraft ? draftToProfile(savedDraft) : undefined}
+          onSelectProfile={openProfile}
+          onOwnProfile={openOwnProfile}
+          onRequestCreate={requestCreate}
+          onRegister={() => openAuth('register')}
+          onLogin={() => openAuth('login')}
+        />
+      </div>
 
       {authLayer}
     </>

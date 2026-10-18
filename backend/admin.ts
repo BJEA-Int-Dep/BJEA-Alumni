@@ -8,6 +8,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { z } from 'zod';
 import writeXlsxFile, { type SheetData } from 'write-excel-file/node';
 import type { AccountStatus, AdminStudent } from '../shared/admin.ts';
+import { experienceLabel, experiencePeriod, primaryExperience, type Experience } from '../shared/experience.ts';
 import {
   canPublishProfile,
   emailSchema,
@@ -227,6 +228,10 @@ function readUserId(pathname: string, suffix = '') {
 
 async function exportWorkbook(database: AppDatabase) {
   const students = studentRows(database).map(parseStudent);
+  const formatExperience = (experience: Experience) => [
+    experienceLabel(experience), experience.title, experience.organization,
+    experience.location, experiencePeriod(experience), experience.description,
+  ].filter(Boolean).join(' · ');
   const columns = [
     ['账号 ID', 10],
     ['真实姓名（仅后台）', 22],
@@ -241,10 +246,8 @@ async function exportWorkbook(database: AppDatabase) {
     ['资料更新时间', 22],
     ['Profile 昵称', 18],
     ['毕业年份', 12],
-    ['当前阶段', 18],
-    ['自定义阶段', 20],
-    ['所在地', 24],
-    ['方向', 24],
+    ['最近经历', 42],
+    ['全部经历', 70],
     ['角色简介', 36],
     ['真心话', 48],
     ['给学弟学妹的话', 48],
@@ -262,6 +265,7 @@ async function exportWorkbook(database: AppDatabase) {
   const date = (value: number) => new Date(value).toLocaleString('zh-CN');
   const rows = students.map((student) => {
     const draft = student.draft;
+    const latestExperience = draft && primaryExperience(draft.experiences);
     return [
       student.id,
       student.realName,
@@ -276,10 +280,8 @@ async function exportWorkbook(database: AppDatabase) {
       date(student.updatedAt),
       draft?.nickname || '',
       draft?.year || '',
-      draft?.statusId || '',
-      draft?.statusCustom || '',
-      draft?.place || '',
-      draft?.direction || '',
+      latestExperience ? formatExperience(latestExperience) : '',
+      draft?.experiences.map(formatExperience).join('\n') || '',
       draft?.summary || '',
       draft?.reflection || '',
       draft?.advice || '',
