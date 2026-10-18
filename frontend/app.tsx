@@ -105,7 +105,6 @@ export default function AlumniApp() {
             visibilitySaving={visibilitySaving}
             visibilityError={visibilityError}
             onPublicProfileChange={(value) => void updateProfileVisibility(value)}
-            onBack={goHome}
             onHome={goHome}
             onCreate={requestCreate}
             onEdit={() => beginProfile(savedDraft ?? draft)}
@@ -136,7 +135,7 @@ export default function AlumniApp() {
           accountName={authUser?.realName || (authUser ? '我的账号' : undefined)}
           hasProfile={authUser?.hasProfile}
           ownProfileId={authUser ? `member-${authUser.id}` : undefined}
-          ownProfile={savedDraft ? draftToProfile(savedDraft) : undefined}
+          ownProfile={savedDraft ? draftToProfile(publishedProfileDraft(savedDraft)) : undefined}
           onSelectProfile={openProfile}
           onOwnProfile={openOwnProfile}
           onRequestCreate={requestCreate}

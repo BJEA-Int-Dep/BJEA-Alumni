@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import {
-  ArrowLeft,
   BookOpen,
   Briefcase,
   Check,
@@ -33,7 +32,6 @@ interface ProfileViewProps {
   visibilitySaving?: boolean;
   visibilityError?: string;
   onPublicProfileChange?: (value: boolean) => void;
-  onBack: () => void;
   onHome: () => void;
   onCreate: () => void;
   onEdit: () => void;
@@ -53,7 +51,6 @@ export function ProfileView({
   visibilitySaving = false,
   visibilityError = '',
   onPublicProfileChange,
-  onBack,
   onHome,
   onCreate,
   onEdit,
@@ -88,20 +85,13 @@ export function ProfileView({
       />
 
       <div className="mx-auto max-w-4xl px-4 pt-5 sm:px-8 sm:pt-8">
-        <div className="mb-4 flex items-center justify-between gap-2">
-          <Button
-            variant="ghost"
-            onClick={onBack}
-            className="-ml-2 h-10 rounded-xl px-3 font-bold text-muted-foreground hover:bg-black/[0.05] hover:text-foreground"
-          >
-            <ArrowLeft className="size-4" /> 返回校友墙
-          </Button>
-          {!isOwner ? (
+        {!isOwner ? (
+          <div className="mb-4 flex justify-end">
             <Button variant="outline" onClick={() => setShareOpen(true)} className="h-10 rounded-xl border-black/10 bg-white px-4 font-black">
               <Share2 className="size-4" /> 分享
             </Button>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
 
         {profile.example ? (
           <p className="mb-4 rounded-xl bg-[#fff0dc] px-4 py-2 text-xs font-bold text-[#885421]">

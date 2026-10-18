@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { CalendarDays, ChevronDown, Plus, Trash2 } from 'lucide-react';
+import { CalendarDays, ChevronDown, Eye, Lock, Plus, Trash2 } from 'lucide-react';
 import type { Experience } from '../../../shared/experience';
 import { degreeLabels, experienceTypeLabels } from '../../../shared/experience';
 import { Button } from '@/components/ui/button';
@@ -31,6 +31,7 @@ const emptyExperience = (): Experience => ({
   startDate: '',
   endDate: '',
   current: true,
+  isPublic: true,
   description: '',
 });
 
@@ -81,7 +82,19 @@ export function ExperienceSection({ draft, patchDraft }: { draft: DraftProfile; 
                   {(Object.keys(experienceTypeLabels) as Experience['type'][]).map((type) => <option key={type} value={type}>{experienceTypeLabels[type]}</option>)}
                 </select>
               </label>
-              <Button type="button" variant="ghost" size="sm" onClick={() => patchDraft({ experiences: draft.experiences.filter((entry) => entry.id !== item.id) })} className="text-muted-foreground"><Trash2 className="size-4" /> 删除</Button>
+              <div className="flex shrink-0 items-center gap-1">
+                <button
+                  type="button"
+                  aria-label={item.isPublic ? `将经历 ${index + 1} 设为仅自己可见` : `将经历 ${index + 1} 设为公开`}
+                  aria-pressed={item.isPublic}
+                  onClick={() => update(item.id, { isPublic: !item.isPublic })}
+                  className={`inline-flex min-h-8 items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1680bd] ${item.isPublic ? 'bg-[#e8f3f8] text-[#17648e]' : 'bg-[#eceae5] text-[#666b6e]'}`}
+                >
+                  {item.isPublic ? <Eye className="size-3" /> : <Lock className="size-3" />}
+                  {item.isPublic ? '公开' : '仅自己'}
+                </button>
+                <Button type="button" variant="ghost" size="sm" onClick={() => patchDraft({ experiences: draft.experiences.filter((entry) => entry.id !== item.id) })} className="text-muted-foreground"><Trash2 className="size-4" /> 删除</Button>
+              </div>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               {item.type === 'education' ? <label className={compactFieldClass}>阶段

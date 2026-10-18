@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import {
   Download,
   LogOut,
-  Plus,
   RefreshCw,
   Search,
   ShieldCheck,
@@ -29,7 +28,7 @@ import { apiRequest, readApiResponse } from '@/lib/api';
 import { ProfileAvatar } from '@/features/avatar/profile-avatar';
 import { ProfilePreview } from '@/features/onboarding/profile-preview';
 import { AboutSection, ThoughtsSection } from '@/features/onboarding/profile-sections';
-import { emptyExperience, ExperienceSection, ExperienceTypeSelect, ExperienceVisibilityButton } from '@/features/onboarding/experience-section';
+import { ExperienceSection } from '@/features/onboarding/experience-section';
 
 const inputClass =
   'h-11 rounded-lg border-black/10 bg-white text-sm font-medium text-foreground';
@@ -553,27 +552,9 @@ export function AdminPage() {
                         <p className="mb-4 text-xs text-muted-foreground">选几个性格标签，也可以写一句话介绍自己。</p>
                         <AboutSection draft={editing.draft} patchDraft={updateDraft} />
                       </section>
-                      {editing.draft.experiences.map((item) => (
-                        <section key={item.id} className="rounded-2xl bg-[#fffaf1] p-5 shadow-sm">
-                          <div className="mb-4 flex items-center justify-between gap-3">
-                            <h2 className="text-lg font-black"><ExperienceTypeSelect type={item.type} onSelect={(type) => updateDraft({
-                              experiences: editing.draft!.experiences.map((entry) => entry.id === item.id && entry.type !== type
-                                ? { ...entry, type, degree: type === 'education' ? 'bachelor' : '' } : entry),
-                            })} /></h2>
-                            <div className="flex shrink-0 items-center gap-1">
-                              <ExperienceVisibilityButton isPublic={item.isPublic} onToggle={() => updateDraft({
-                                experiences: editing.draft!.experiences.map((entry) => entry.id === item.id ? { ...entry, isPublic: !entry.isPublic } : entry),
-                              })} />
-                              <Button type="button" variant="ghost" size="sm" onClick={() => updateDraft({ experiences: editing.draft!.experiences.filter((entry) => entry.id !== item.id) })}><Trash2 className="size-4" /> 移除</Button>
-                            </div>
-                          </div>
-                          <ExperienceSection experience={item} onChange={(patch) => updateDraft({
-                            experiences: editing.draft!.experiences.map((entry) => entry.id === item.id ? { ...entry, ...patch } : entry),
-                          })} />
-                        </section>
-                      ))}
-                      <section className="rounded-2xl border border-dashed border-black/15 bg-white/45 p-5">
-                        <Button type="button" variant="outline" onClick={() => updateDraft({ experiences: [...editing.draft!.experiences, emptyExperience()] })} disabled={editing.draft.experiences.length >= 15} className="rounded-xl bg-white font-bold"><Plus className="size-4" /> 添加经历</Button>
+                      <section className="rounded-2xl bg-[#fffaf1] p-5 shadow-sm">
+                        <h2 className="mb-4 text-lg font-black">经历</h2>
+                        <ExperienceSection draft={editing.draft} patchDraft={updateDraft} />
                       </section>
                       <section className="rounded-2xl bg-[#fffaf1] p-5 shadow-sm">
                         <h2 className="mb-1 text-lg font-black">一些想法</h2>
