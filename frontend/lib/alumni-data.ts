@@ -20,9 +20,6 @@ export interface AlumniProfile {
   year: string;
   summary: string;
   field: string;
-  status: string;
-  place: string;
-  direction: string;
   reflection: string;
   advice: string;
   tone: Tone;

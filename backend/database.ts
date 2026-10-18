@@ -4,40 +4,6 @@ import { dirname, resolve } from 'node:path';
 
 export type AppDatabase = Database.Database;
 
-function migrateExperienceMonths(db: AppDatabase) {
-  const migrateTable = (table: 'profiles' | 'example_profiles', idColumn: 'user_id' | 'id') => {
-    const rows = db.prepare(`SELECT ${idColumn} AS id, draft_json FROM ${table}`)
-      .all() as Array<{ id: string | number; draft_json: string }>;
-    const update = db.prepare(`UPDATE ${table} SET draft_json = ? WHERE ${idColumn} = ?`);
-    for (const row of rows) {
-      let draft: unknown;
-      try {
-        draft = JSON.parse(row.draft_json);
-      } catch {
-        continue;
-      }
-      if (!draft || typeof draft !== 'object' || !('experiences' in draft) || !Array.isArray(draft.experiences)) continue;
-      let changed = false;
-      for (const experience of draft.experiences) {
-        if (!experience || typeof experience !== 'object') continue;
-        if (typeof experience.startDate === 'string' && /^(?:19|20)\d{2}$/.test(experience.startDate)) {
-          experience.startDate += '-01';
-          changed = true;
-        }
-        if (typeof experience.endDate === 'string' && /^(?:19|20)\d{2}$/.test(experience.endDate)) {
-          experience.endDate += '-12';
-          changed = true;
-        }
-      }
-      if (changed) update.run(JSON.stringify(draft), row.id);
-    }
-  };
-  db.transaction(() => {
-    migrateTable('profiles', 'user_id');
-    migrateTable('example_profiles', 'id');
-  })();
-}
-
 export function openDatabase(path = process.env.DATABASE_PATH || '.data/bjea.sqlite') {
   const resolved = resolve(path);
   mkdirSync(dirname(resolved), { recursive: true });
@@ -170,6 +136,5 @@ export function openDatabase(path = process.env.DATABASE_PATH || '.data/bjea.sql
     .all() as Array<{ name: string }>;
   if (!avatarJobColumns.some((column) => column.name === 'quota_exempt'))
     db.exec('ALTER TABLE avatar_jobs ADD COLUMN quota_exempt INTEGER NOT NULL DEFAULT 0 CHECK(quota_exempt IN (0, 1))');
-  migrateExperienceMonths(db);
   return db;
 }

@@ -22,9 +22,9 @@ interface Props {
 type Section = 'about' | 'journey' | 'thoughts' | 'avatar';
 const labels: Record<Section, string> = {
   about: '关于我',
-  journey: '毕业后的经历',
+  journey: '经历',
   thoughts: '一些真心话',
-  avatar: '我的 AI 头像',
+  avatar: '我的头像',
 };
 const sectionNames = Object.keys(labels) as Section[];
 
@@ -118,7 +118,7 @@ export function OnboardingFlow({
 
           <div className="flex flex-wrap items-center gap-4">
             <Button onClick={save} disabled={completing} className="h-12 rounded-2xl bg-[#ee573c] px-7 font-black text-white">{completing ? '正在保存…' : '保存 Profile'}</Button>
-            <span className="text-xs text-muted-foreground">默认仅自己可见，保存后可以选择公开</span>
+            <span className="text-xs text-muted-foreground">保存后可在 Profile 页面调整公开设置</span>
           </div>
           {(error || completionError) && <p role="alert" className="rounded-xl bg-[#fff0dc] p-3 text-sm font-bold text-[#885421]">{error || completionError}</p>}
         </div>

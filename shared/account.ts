@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { avatarRecipeSchema, generatedAvatarIdSchema } from './avatar.ts';
-import { experienceSchema, legacyExperiences } from './experience.ts';
+import { experienceSchema } from './experience.ts';
 
 export const nicknameSchema = z
   .string()
@@ -54,35 +54,16 @@ export const profileDraftSchema = z.object({
   summary: z.string().max(180),
   avatar: avatarStateSchema.optional(),
   year: z.string().max(8),
-  statusId: z.enum([
-    '',
-    'university',
-    'postgrad',
-    'working',
-    'independent',
-    'gap',
-    'other',
-  ]),
-  statusCustom: z.string().max(80),
-  place: z.string().max(100),
-  direction: z.string().max(100),
-  experiences: z.array(experienceSchema).max(15).optional(),
+  experiences: z.array(experienceSchema).max(15),
   reflection: z.string().max(500),
   advice: z.string().max(500),
-}).transform((draft) => ({
-  ...draft,
-  experiences: draft.experiences ?? legacyExperiences(draft),
-}));
+});
 
 export type PersistedProfileDraft = z.infer<typeof profileDraftSchema>;
 
 export function publishedProfileDraft(draft: PersistedProfileDraft): PersistedProfileDraft {
   return {
     ...draft,
-    statusId: '',
-    statusCustom: '',
-    place: '',
-    direction: '',
     experiences: draft.experiences.filter((experience) => experience.isPublic),
   };
 }

@@ -1,10 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { loadEnvFile } from 'node:process';
-import { profileDraftSchema } from '../shared/account.ts';
-import { emptyAvatar, type AvatarRecipe } from '../shared/avatar.ts';
+import { profileDraftSchema, type PersistedProfileDraft } from '../shared/account.ts';
+import { avatarRecipeSchema, emptyAvatar, generatedAvatarIdSchema, type AvatarRecipe } from '../shared/avatar.ts';
 import { openDatabase } from '../backend/database.ts';
-import type { AlumniProfile } from '../frontend/lib/alumni-data.ts';
-import type { StatusId } from '../frontend/features/onboarding/options.ts';
 
 try {
   loadEnvFile('.env');
@@ -14,9 +12,9 @@ try {
 
 const examples = JSON.parse(
   readFileSync(new URL('./example-profiles.json', import.meta.url), 'utf8'),
-) as Array<AlumniProfile & {
+) as Array<Pick<PersistedProfileDraft, 'nickname' | 'year' | 'summary' | 'tone' | 'experiences' | 'reflection' | 'advice'> & {
+  id: string;
   personalityTraits: string[];
-  statusId: StatusId;
   avatarRecipe: AvatarRecipe;
 }>;
 
@@ -31,10 +29,7 @@ const rows = examples.map((example, index) => {
     summary: example.summary,
     avatar: { ...emptyAvatar(), recipe: example.avatarRecipe },
     year: example.year,
-    statusId: example.statusId,
-    statusCustom: example.statusId === 'other' ? example.status : '',
-    place: example.place,
-    direction: example.direction,
+    experiences: example.experiences,
     reflection: example.reflection,
     advice: example.advice,
   });
@@ -58,12 +53,12 @@ try {
       let adoptedRecipe: AvatarRecipe | undefined;
       if (existing) {
         try {
-          const parsed = profileDraftSchema.safeParse(JSON.parse(existing.draft_json));
-          if (parsed.success) {
-            generatedAssetId = parsed.data.avatar?.generatedAssetId;
-            adoptedRecipe = parsed.data.avatar?.adoptedRecipe ?? parsed.data.avatar?.recipe;
-          }
-        } catch { /* Replace invalid legacy draft. */ }
+          const avatar = JSON.parse(existing.draft_json)?.avatar;
+          const id = generatedAvatarIdSchema.safeParse(avatar?.generatedAssetId);
+          const recipe = avatarRecipeSchema.safeParse(avatar?.adoptedRecipe ?? avatar?.recipe);
+          if (id.success) generatedAssetId = id.data;
+          if (recipe.success) adoptedRecipe = recipe.data;
+        } catch { /* Replace invalid saved draft. */ }
       }
       const draft = {
         ...row.draft,

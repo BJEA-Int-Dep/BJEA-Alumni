@@ -15,7 +15,7 @@ export const experienceSchema = z.object({
   startDate: experienceDateSchema,
   endDate: experienceDateSchema,
   current: z.boolean(),
-  isPublic: z.boolean().default(true),
+  isPublic: z.boolean(),
   description: z.string().max(500),
 }).refine((item) => {
   if (item.current || !item.startDate || !item.endDate) return true;
@@ -66,33 +66,4 @@ export function experiencePeriod(experience: Experience) {
   const end = experience.current ? '至今' : experienceDateLabel(experience.endDate);
   if (!start) return experience.current ? '' : end ? `截至 ${end}` : '';
   return end ? `${start} — ${end}` : `${start}开始`;
-}
-
-export function legacyExperiences(draft: {
-  statusId: string;
-  statusCustom: string;
-  place: string;
-  direction: string;
-}): Experience[] {
-  if (!draft.statusId && !draft.statusCustom && !draft.place && !draft.direction) return [];
-  const type: Experience['type'] =
-    draft.statusId === 'university' || draft.statusId === 'postgrad' ? 'education' :
-    draft.statusId === 'working' || draft.statusId === 'independent' ? 'work' :
-    draft.statusId === 'gap' ? 'gap' : 'other';
-  const degree: Experience['degree'] = draft.statusId === 'university' ? 'bachelor' : '';
-  const defaultTitle = draft.statusId === 'independent' ? '创业 / 自由职业' :
-    draft.statusId === 'gap' ? 'Gap / 转弯中' :
-    draft.statusId === 'postgrad' ? '继续深造' :
-    draft.statusId === 'university' ? '本科在读' :
-    draft.statusId === 'working' ? '工作' : '其他经历';
-  return [{
-    id: 'legacy', type, degree,
-    title: draft.direction || draft.statusCustom || defaultTitle,
-    organization: type === 'education' || type === 'work' ? draft.place : '',
-    location: type === 'education' || type === 'work' ? '' : draft.place,
-    startDate: '', endDate: '', current: true, isPublic: true,
-    description: draft.statusId === 'postgrad' ? '读研 / 继续深造' :
-      draft.statusId === 'independent' ? '创业 / 自由职业' :
-      draft.statusId === 'other' && draft.direction ? draft.statusCustom : '',
-  }];
 }
