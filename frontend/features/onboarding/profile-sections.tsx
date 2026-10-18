@@ -21,7 +21,7 @@ export function BasicSection({
   nicknameError: string;
 }) {
   return (
-    <section className="rounded-[28px] bg-[#fffaf1] p-5 shadow-[0_20px_60px_rgba(57,47,33,0.08)] sm:p-8">
+    <section className="py-5 sm:py-8">
       <p className="text-xs font-black text-[#df5035]">基本信息 · 必填</p>
       <h1 className="mt-2 text-3xl font-black">先让大家认识你</h1>
       <div className="mt-6 grid gap-5 sm:grid-cols-2">
@@ -33,7 +33,7 @@ export function BasicSection({
           高中毕业年份
           <select value={draft.year} onChange={(event) => patchDraft({ year: event.target.value })} className="h-12 rounded-xl border border-black/10 bg-white px-3">
             <option value="">请选择</option>
-            {Array.from({ length: 15 }, (_, index) => String(2013 + index)).map((year) => <option key={year}>{year}</option>)}
+            {Array.from({ length: 11 }, (_, index) => String(2017 + index)).map((year) => <option key={year}>{year}</option>)}
           </select>
         </label>
       </div>

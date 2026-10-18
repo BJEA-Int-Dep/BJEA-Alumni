@@ -1,12 +1,11 @@
-import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
-import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
+import { useCallback, useState, type Dispatch, type SetStateAction } from 'react';
+import { ArrowLeft, Minus, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { emptyAvatar, type AvatarState } from '../../../shared/avatar';
-import type { Experience } from '../../../shared/experience';
 import { AvatarSection } from './avatar-section';
 import { answersFor, validateDraftForSave, type DraftProfile } from './draft';
 import { BasicSection, AboutSection, ThoughtsSection } from './profile-sections';
-import { emptyExperience, ExperienceSection, ExperienceTypeSelect, ExperienceVisibilityButton } from './experience-section';
+import { ExperienceSection } from './experience-section';
 import { ProfilePreview } from './profile-preview';
 import { useNicknameSuggestions } from './use-nickname-suggestions';
 
@@ -20,24 +19,14 @@ interface Props {
   savedAvatar?: AvatarState;
 }
 
-type AddSection = 'about' | 'journey' | 'thoughts' | 'avatar';
-type Section = Exclude<AddSection, 'journey'> | `experience:${string}` | `pending:${string}`;
-const labels: Record<AddSection, string> = {
+type Section = 'about' | 'journey' | 'thoughts' | 'avatar';
+const labels: Record<Section, string> = {
   about: '关于我',
-  journey: '经历',
+  journey: '毕业后的经历',
   thoughts: '一些真心话',
   avatar: '我的 AI 头像',
 };
-const sectionNames = Object.keys(labels) as AddSection[];
-
-function initialSections(draft: DraftProfile): Section[] {
-  const sections: Section[] = [];
-  if (draft.personalityTraits?.length || draft.personalityCustom || draft.summary) sections.push('about');
-  sections.push(...draft.experiences.map((item) => `experience:${item.id}` as const));
-  if (draft.reflection || draft.advice) sections.push('thoughts');
-  if (draft.avatar?.recipe?.subject) sections.push('avatar');
-  return sections;
-}
+const sectionNames = Object.keys(labels) as Section[];
 
 export function OnboardingFlow({
   draft,
@@ -48,16 +37,10 @@ export function OnboardingFlow({
   completionError = '',
   savedAvatar,
 }: Props) {
-  const [sections, setSections] = useState<Section[]>(() => initialSections(draft));
-  const [showAdd, setShowAdd] = useState(false);
+  const [expandedSections, setExpandedSections] = useState<Section[]>([]);
+  const [visitedSections, setVisitedSections] = useState<Section[]>([]);
   const [error, setError] = useState('');
   const [nicknameRequested, setNicknameRequested] = useState(false);
-  const [newExperienceId, setNewExperienceId] = useState<string | null>(null);
-  const newExperienceRef = useRef<HTMLElement>(null);
-
-  useEffect(() => {
-    if (newExperienceId) newExperienceRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, [newExperienceId]);
 
   const patchDraft = (patch: Partial<DraftProfile>) => {
     setError('');
@@ -71,30 +54,14 @@ export function OnboardingFlow({
   }, [onDraftChange]);
   const nicknames = useNicknameSuggestions(answersFor(draft), changeNicknames, nicknameRequested);
 
-  const removeSection = (section: Section) => {
-    setSections((items) => items.filter((item) => item !== section));
-    if (section.startsWith('pending:')) {
-      setError('');
-      return;
-    }
-    if (section.startsWith('experience:')) {
-      patchDraft({ experiences: draft.experiences.filter((item) => item.id !== section.slice('experience:'.length)) });
-      return;
-    }
-    switch (section) {
-      case 'about': patchDraft({ personalityTraits: [], personalityCustom: '', summary: '' }); break;
-      case 'thoughts': patchDraft({ reflection: '', advice: '' }); break;
-      case 'avatar': patchDraft({
-        avatar: { ...(draft.avatar ?? emptyAvatar()), recipe: undefined, generatedAssetId: undefined, adoptedRecipe: undefined },
-      }); break;
-    }
+  const toggleSection = (section: Section) => {
+    setVisitedSections((current) => current.includes(section) ? current : [...current, section]);
+    setExpandedSections((current) => current.includes(section)
+      ? current.filter((item) => item !== section)
+      : [...current, section]);
   };
 
   const save = () => {
-    if (sections.some((section) => section.startsWith('pending:'))) {
-      setError('请先选择经历类型，或移除未完成的经历。');
-      return;
-    }
     const validationError = validateDraftForSave(draft);
     if (validationError) {
       setError(validationError);
@@ -104,42 +71,12 @@ export function OnboardingFlow({
   };
 
   const sectionContent = (section: Section) => {
-    if (section.startsWith('experience:')) {
-      const item = draft.experiences.find((experience) => experience.id === section.slice('experience:'.length));
-      return item ? <ExperienceSection experience={item} onChange={(patch: Partial<Experience>) => patchDraft({
-        experiences: draft.experiences.map((experience) => experience.id === item.id ? { ...experience, ...patch } : experience),
-      })} /> : null;
-    }
     switch (section) {
       case 'about': return <AboutSection draft={draft} patchDraft={patchDraft} />;
+      case 'journey': return <ExperienceSection draft={draft} patchDraft={patchDraft} />;
       case 'thoughts': return <ThoughtsSection draft={draft} patchDraft={patchDraft} />;
       case 'avatar': return <AvatarSection draft={draft} onDraftChange={onDraftChange} savedAvatar={savedAvatar} />;
     }
-  };
-
-  const selectExperienceType = (section: Section, type: Experience['type']) => {
-    if (section.startsWith('pending:')) {
-      const id = section.slice('pending:'.length);
-      patchDraft({ experiences: [...draft.experiences, emptyExperience(type, id)] });
-      setSections((current) => current.map((item) => item === section ? `experience:${id}` as const : item));
-    } else if (section.startsWith('experience:')) {
-      const id = section.slice('experience:'.length);
-      patchDraft({ experiences: draft.experiences.map((item) => item.id === id && item.type !== type
-        ? { ...item, type, degree: type === 'education' ? 'bachelor' : '' } : item) });
-    }
-  };
-
-  const addSection = (section: AddSection) => {
-    if (section === 'journey') {
-      if (draft.experiences.length + sections.filter((item) => item.startsWith('pending:')).length >= 15) return;
-      const id = crypto.randomUUID();
-      setSections((current) => [...current, `pending:${id}`]);
-      setNewExperienceId(id);
-      setError('');
-    } else {
-      setSections((current) => [...current, section]);
-    }
-    setShowAdd(false);
   };
 
   return (
@@ -147,49 +84,37 @@ export function OnboardingFlow({
       <header className="sticky top-0 z-30 border-b border-black/[0.06] bg-[#f4f1e9]/95 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:px-8">
           <Button variant="ghost" size="icon-lg" onClick={onExit} aria-label="返回"><ArrowLeft className="size-5" /></Button>
-          <div><p className="font-black">编辑我的 Profile</p><p className="text-xs text-muted-foreground">先填写昵称和毕业年份，其他板块随时添加</p></div>
+          <div><p className="font-black">编辑我的 Profile</p><p className="text-xs text-muted-foreground">先填写昵称和毕业年份，其他板块按需展开</p></div>
         </div>
       </header>
 
       <div className="mx-auto grid max-w-6xl gap-5 px-4 pt-5 sm:px-8 sm:pt-8 lg:grid-cols-[minmax(0,1fr)_410px] lg:items-start lg:gap-10">
         <div className="order-2 grid gap-4 lg:order-1">
-          <BasicSection
-            draft={draft}
-            patchDraft={patchDraft}
-            onSuggestNames={() => { setNicknameRequested(true); nicknames.refresh(); }}
-            nicknameLoading={nicknames.loading}
-            nicknameError={nicknames.error}
-          />
-
-          {sections.map((section) => {
-            const experienceId = section.startsWith('experience:') ? section.slice('experience:'.length) : null;
-            const pendingId = section.startsWith('pending:') ? section.slice('pending:'.length) : null;
-            const experience = experienceId ? draft.experiences.find((item) => item.id === experienceId) : null;
-            return <section key={section} ref={experienceId === newExperienceId || pendingId === newExperienceId ? newExperienceRef : undefined} className="scroll-mt-24 rounded-[28px] bg-[#fffaf1] p-5 shadow-[0_12px_35px_rgba(57,47,33,0.06)] sm:p-8">
-              <div className={`${pendingId ? '' : 'mb-5'} flex items-center justify-between gap-2`}>
-                <h2 className="min-w-0 text-lg font-black sm:text-xl">{experience || pendingId ? <ExperienceTypeSelect type={experience?.type} onSelect={(type) => selectExperienceType(section, type)} /> : labels[section as Exclude<AddSection, 'journey'>]}</h2>
-                <div className="flex shrink-0 items-center gap-1">
-                  {experience ? <ExperienceVisibilityButton isPublic={experience.isPublic} onToggle={() => patchDraft({
-                    experiences: draft.experiences.map((item) => item.id === experience.id ? { ...item, isPublic: !item.isPublic } : item),
-                  })} /> : null}
-                  <Button variant="ghost" size="sm" onClick={() => removeSection(section)} aria-label="移除这个板块"><Trash2 className="size-4" /><span className="hidden sm:inline">移除</span></Button>
-                </div>
-              </div>
-              {sectionContent(section)}
-            </section>;
-          })}
-
-          <section className="rounded-[28px] border border-dashed border-black/15 bg-white/45 p-5 sm:p-7">
-            <Button variant="outline" onClick={() => setShowAdd((visible) => !visible)} className="h-12 rounded-xl bg-white font-black"><Plus className="size-4" /> 添加板块</Button>
-            {showAdd && (
-              <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                {sectionNames.filter((section) => section === 'journey' || !sections.includes(section)).map((section) => (
-                  <button key={section} type="button" onClick={() => addSection(section)} disabled={section === 'journey' && draft.experiences.length + sections.filter((item) => item.startsWith('pending:')).length >= 15} className="rounded-xl border border-black/10 bg-white p-4 text-left text-sm font-bold disabled:opacity-50"><Plus className="mr-2 inline size-4" />{labels[section]}</button>
-                ))}
-              </div>
-            )}
-            <p className="mt-3 text-xs text-muted-foreground">不用一次写完，保存后随时可以回来修改。</p>
-          </section>
+          <div className="divide-y divide-black/10 rounded-[28px] bg-[#fffaf1] px-5 shadow-[0_12px_35px_rgba(57,47,33,0.06)] sm:px-8">
+            <BasicSection
+              draft={draft}
+              patchDraft={patchDraft}
+              onSuggestNames={() => { setNicknameRequested(true); nicknames.refresh(); }}
+              nicknameLoading={nicknames.loading}
+              nicknameError={nicknames.error}
+            />
+            {sectionNames.map((section) => {
+              const expanded = expandedSections.includes(section);
+              return (
+                <section key={section} className="py-5 sm:py-8">
+                  <h2 className="text-xl font-black">
+                    <button type="button" onClick={() => toggleSection(section)} aria-expanded={expanded} className="inline-flex items-center gap-2 rounded-md text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1680bd]">
+                      {labels[section]}
+                      {expanded ? <Minus className="size-5" aria-hidden="true" /> : <Plus className="size-5" aria-hidden="true" />}
+                    </button>
+                  </h2>
+                  <div aria-hidden={!expanded} inert={!expanded} className={`grid transition-[grid-template-rows,opacity,margin-top] duration-200 ease-out motion-reduce:transition-none ${expanded ? 'mt-5 grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+                    <div className="-mx-1.5 -mb-1.5 min-h-0 overflow-hidden px-1.5 pb-1.5">{visitedSections.includes(section) && sectionContent(section)}</div>
+                  </div>
+                </section>
+              );
+            })}
+          </div>
 
           <div className="flex flex-wrap items-center gap-4">
             <Button onClick={save} disabled={completing} className="h-12 rounded-2xl bg-[#ee573c] px-7 font-black text-white">{completing ? '正在保存…' : '保存 Profile'}</Button>

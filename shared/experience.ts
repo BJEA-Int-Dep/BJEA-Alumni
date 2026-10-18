@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
 const experienceDateSchema = z.string().trim().regex(
-  /^(?:|(?:19|20)\d{2}(?:-(?:0[1-9]|1[0-2]))?)$/,
-  '时间请填写年份或年月，例如 2024 或 2024-09。',
+  /^(?:|(?:19|20)\d{2}-(?:0[1-9]|1[0-2]))$/,
+  '时间请选择年月，例如 2024-09。',
 );
 
 export const experienceSchema = z.object({
@@ -19,9 +19,7 @@ export const experienceSchema = z.object({
   description: z.string().max(500),
 }).refine((item) => {
   if (item.current || !item.startDate || !item.endDate) return true;
-  const start = item.startDate.length === 4 ? `${item.startDate}-01` : item.startDate;
-  const end = item.endDate.length === 4 ? `${item.endDate}-12` : item.endDate;
-  return end >= start;
+  return item.endDate >= item.startDate;
 }, { path: ['endDate'], message: '经历的结束时间不能早于开始时间。' });
 
 export type Experience = z.infer<typeof experienceSchema>;
@@ -58,9 +56,9 @@ export function primaryExperience(experiences: Experience[]) {
 }
 
 export function experienceDateLabel(value: string) {
-  if (!value) return '';
+  if (!/^(?:19|20)\d{2}-(?:0[1-9]|1[0-2])$/.test(value)) return '';
   const [year, month] = value.split('-');
-  return month ? `${year} 年 ${Number(month)} 月` : `${year} 年`;
+  return `${year} 年 ${Number(month)} 月`;
 }
 
 export function experiencePeriod(experience: Experience) {

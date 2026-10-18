@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, Plus, Trash2 } from 'lucide-react';
+import { CalendarDays, ChevronDown, Plus, Trash2 } from 'lucide-react';
 import type { Experience } from '../../../shared/experience';
 import { degreeLabels, experienceTypeLabels } from '../../../shared/experience';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,17 @@ import type { DraftProfile } from './draft';
 
 type PatchDraft = (patch: Partial<DraftProfile>) => void;
 const compactFieldClass = 'grid grid-cols-[7.25rem_minmax(0,1fr)] items-center gap-2 text-sm font-bold sm:grid-cols-1 sm:gap-2';
+
+function MonthInput({ value, onChange, label }: { value: string; onChange: (value: string) => void; label: string }) {
+  const pickerValue = /^(?:19|20)\d{2}-(?:0[1-9]|1[0-2])$/.test(value) ? value : '';
+  return <span className="relative block min-w-0 rounded-xl focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[#1680bd]">
+    <Input value={value} onChange={(event) => onChange(event.target.value)} maxLength={7} placeholder="YYYY-MM" className="h-11 rounded-xl bg-white pr-11" />
+    <CalendarDays className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+    <input type="month" aria-label={`选择${label}月份`} value={pickerValue} onChange={(event) => onChange(event.target.value)} min="1900-01" max="2099-12" onClick={(event) => {
+      try { event.currentTarget.showPicker?.(); } catch { /* The native month control remains available. */ }
+    }} className="absolute inset-y-0 right-0 h-full w-11 cursor-pointer opacity-0" />
+  </span>;
+}
 
 const emptyExperience = (): Experience => ({
   id: crypto.randomUUID(),
@@ -83,20 +94,20 @@ export function ExperienceSection({ draft, patchDraft }: { draft: DraftProfile; 
                 <Input value={item.title} onChange={(event) => update(item.id, { title: event.target.value })} maxLength={100} placeholder={item.type === 'gap' ? '例如：休整、旅行、探索新方向' : '写一句大家能看懂的话'} className="h-11 rounded-xl bg-white" />
               </label>
               <label className={compactFieldClass}>{organizationLabel}
-                <Input value={item.organization} onChange={(event) => update(item.id, { organization: event.target.value })} maxLength={100} placeholder="可以不填" className="h-11 rounded-xl bg-white" />
+                <Input value={item.organization} onChange={(event) => update(item.id, { organization: event.target.value })} maxLength={100} className="h-11 rounded-xl bg-white" />
               </label>
-              <label className={compactFieldClass}>地点（可选）
-                <Input value={item.location} onChange={(event) => update(item.id, { location: event.target.value })} maxLength={100} placeholder="例如：北京，或远程" className="h-11 rounded-xl bg-white" />
+              <label className={compactFieldClass}>开始时间
+                <MonthInput label="开始时间" value={item.startDate} onChange={(startDate) => update(item.id, { startDate })} />
               </label>
-              <label className={compactFieldClass}>开始时间（可选）
-                <Input value={item.startDate} onChange={(event) => update(item.id, { startDate: event.target.value })} maxLength={7} inputMode="numeric" placeholder="如 2024 或 2024-09" className="h-11 rounded-xl bg-white" />
-              </label>
-              {!item.current ? <label className={compactFieldClass}>结束时间（可选）
-                <Input value={item.endDate} onChange={(event) => update(item.id, { endDate: event.target.value })} maxLength={7} inputMode="numeric" placeholder="如 2025 或 2025-06" className="h-11 rounded-xl bg-white" />
+              {!item.current ? <label className={compactFieldClass}>结束时间
+                <MonthInput label="结束时间" value={item.endDate} onChange={(endDate) => update(item.id, { endDate })} />
               </label> : null}
+              <label className={compactFieldClass}>城市
+                <Input value={item.location} onChange={(event) => update(item.id, { location: event.target.value })} maxLength={100} className="h-11 rounded-xl bg-white" />
+              </label>
             </div>
             <label className="flex items-center gap-2 text-sm font-bold"><input type="checkbox" checked={item.current} onChange={(event) => update(item.id, { current: event.target.checked, endDate: event.target.checked ? '' : item.endDate })} className="size-4 accent-[#ee573c]" />仍在进行</label>
-            <label className="grid gap-2 text-sm font-bold">想补充的故事（可选）
+            <label className="grid gap-2 text-sm font-bold">想补充的故事
               <Textarea value={item.description} onChange={(event) => update(item.id, { description: event.target.value })} maxLength={500} placeholder="这段时间做了什么，或为什么选择这条路" className="min-h-20 rounded-xl bg-white" />
             </label>
           </div>
