@@ -1,11 +1,12 @@
-import { useCallback, useState, type Dispatch, type SetStateAction } from 'react';
+import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { emptyAvatar, type AvatarState } from '../../../shared/avatar';
+import type { Experience } from '../../../shared/experience';
 import { AvatarSection } from './avatar-section';
 import { answersFor, validateDraftForSave, type DraftProfile } from './draft';
 import { BasicSection, AboutSection, ThoughtsSection } from './profile-sections';
-import { ExperienceSection } from './experience-section';
+import { emptyExperience, ExperienceSection } from './experience-section';
 import { ProfilePreview } from './profile-preview';
 import { useNicknameSuggestions } from './use-nickname-suggestions';
 
@@ -19,24 +20,23 @@ interface Props {
   savedAvatar?: AvatarState;
 }
 
-type Section = 'about' | 'journey' | 'thoughts' | 'avatar';
-const labels: Record<Section, string> = {
+type AddSection = 'about' | 'journey' | 'thoughts' | 'avatar';
+type Section = Exclude<AddSection, 'journey'> | `experience:${string}`;
+const labels: Record<AddSection, string> = {
   about: '关于我',
   journey: '毕业后的经历',
   thoughts: '一些真心话',
   avatar: '我的 AI 头像',
 };
-const sectionNames = Object.keys(labels) as Section[];
+const sectionNames = Object.keys(labels) as AddSection[];
 
 function initialSections(draft: DraftProfile): Section[] {
-  return sectionNames.filter((section) => {
-    switch (section) {
-      case 'about': return Boolean(draft.personalityTraits?.length || draft.personalityCustom || draft.summary);
-      case 'journey': return draft.experiences.length > 0;
-      case 'thoughts': return Boolean(draft.reflection || draft.advice);
-      case 'avatar': return Boolean(draft.avatar?.recipe?.subject);
-    }
-  });
+  const sections: Section[] = [];
+  if (draft.personalityTraits?.length || draft.personalityCustom || draft.summary) sections.push('about');
+  sections.push(...draft.experiences.map((item) => `experience:${item.id}` as const));
+  if (draft.reflection || draft.advice) sections.push('thoughts');
+  if (draft.avatar?.recipe?.subject) sections.push('avatar');
+  return sections;
 }
 
 export function OnboardingFlow({
@@ -52,6 +52,12 @@ export function OnboardingFlow({
   const [showAdd, setShowAdd] = useState(false);
   const [error, setError] = useState('');
   const [nicknameRequested, setNicknameRequested] = useState(false);
+  const [newExperienceId, setNewExperienceId] = useState<string | null>(null);
+  const newExperienceRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (newExperienceId) newExperienceRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [newExperienceId]);
 
   const patchDraft = (patch: Partial<DraftProfile>) => {
     setError('');
@@ -67,9 +73,12 @@ export function OnboardingFlow({
 
   const removeSection = (section: Section) => {
     setSections((items) => items.filter((item) => item !== section));
+    if (section.startsWith('experience:')) {
+      patchDraft({ experiences: draft.experiences.filter((item) => item.id !== section.slice('experience:'.length)) });
+      return;
+    }
     switch (section) {
       case 'about': patchDraft({ personalityTraits: [], personalityCustom: '', summary: '' }); break;
-      case 'journey': patchDraft({ experiences: [] }); break;
       case 'thoughts': patchDraft({ reflection: '', advice: '' }); break;
       case 'avatar': patchDraft({
         avatar: { ...(draft.avatar ?? emptyAvatar()), recipe: undefined, generatedAssetId: undefined, adoptedRecipe: undefined },
@@ -87,12 +96,30 @@ export function OnboardingFlow({
   };
 
   const sectionContent = (section: Section) => {
+    if (section.startsWith('experience:')) {
+      const item = draft.experiences.find((experience) => experience.id === section.slice('experience:'.length));
+      return item ? <ExperienceSection experience={item} onChange={(patch: Partial<Experience>) => patchDraft({
+        experiences: draft.experiences.map((experience) => experience.id === item.id ? { ...experience, ...patch } : experience),
+      })} /> : null;
+    }
     switch (section) {
       case 'about': return <AboutSection draft={draft} patchDraft={patchDraft} />;
-      case 'journey': return <ExperienceSection draft={draft} patchDraft={patchDraft} />;
       case 'thoughts': return <ThoughtsSection draft={draft} patchDraft={patchDraft} />;
       case 'avatar': return <AvatarSection draft={draft} onDraftChange={onDraftChange} savedAvatar={savedAvatar} />;
     }
+  };
+
+  const addSection = (section: AddSection) => {
+    if (section === 'journey') {
+      if (draft.experiences.length >= 15) return;
+      const item = emptyExperience();
+      patchDraft({ experiences: [...draft.experiences, item] });
+      setSections((current) => [...current, `experience:${item.id}`]);
+      setNewExperienceId(item.id);
+    } else {
+      setSections((current) => [...current, section]);
+    }
+    setShowAdd(false);
   };
 
   return (
@@ -114,22 +141,23 @@ export function OnboardingFlow({
             nicknameError={nicknames.error}
           />
 
-          {sections.map((section) => (
-            <section key={section} className="rounded-[28px] bg-[#fffaf1] p-5 shadow-[0_12px_35px_rgba(57,47,33,0.06)] sm:p-8">
+          {sections.map((section) => {
+            const experienceId = section.startsWith('experience:') ? section.slice('experience:'.length) : null;
+            return <section key={section} ref={experienceId === newExperienceId ? newExperienceRef : undefined} className="scroll-mt-24 rounded-[28px] bg-[#fffaf1] p-5 shadow-[0_12px_35px_rgba(57,47,33,0.06)] sm:p-8">
               <div className="mb-5 flex items-center justify-between">
-                <h2 className="text-xl font-black">{labels[section]}</h2>
+                <h2 className="text-xl font-black">{experienceId ? `${labels.journey} ${draft.experiences.findIndex((item) => item.id === experienceId) + 1}` : labels[section as Exclude<AddSection, 'journey'>]}</h2>
                 <Button variant="ghost" size="sm" onClick={() => removeSection(section)}><Trash2 className="size-4" /> 移除</Button>
               </div>
               {sectionContent(section)}
-            </section>
-          ))}
+            </section>;
+          })}
 
           <section className="rounded-[28px] border border-dashed border-black/15 bg-white/45 p-5 sm:p-7">
             <Button variant="outline" onClick={() => setShowAdd((visible) => !visible)} className="h-12 rounded-xl bg-white font-black"><Plus className="size-4" /> 添加板块</Button>
             {showAdd && (
               <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                {sectionNames.filter((section) => !sections.includes(section)).map((section) => (
-                  <button key={section} type="button" onClick={() => { setSections((items) => [...items, section]); setShowAdd(false); }} className="rounded-xl border border-black/10 bg-white p-4 text-left text-sm font-bold"><Plus className="mr-2 inline size-4" />{labels[section]}</button>
+                {sectionNames.filter((section) => section === 'journey' || !sections.includes(section)).map((section) => (
+                  <button key={section} type="button" onClick={() => addSection(section)} disabled={section === 'journey' && draft.experiences.length >= 15} className="rounded-xl border border-black/10 bg-white p-4 text-left text-sm font-bold disabled:opacity-50"><Plus className="mr-2 inline size-4" />{labels[section]}</button>
                 ))}
               </div>
             )}
