@@ -6,8 +6,9 @@ import {
 } from '../../shared/account.ts';
 import {
   createSession, currentUser, deleteSession, emailKey, hashPassword,
-  nicknameKey, passwordMatches, publicUser, requireUser, verificationCodeMatches,
+  nicknameKey, passwordMatches, publicUser, requireUser,
 } from '../auth.ts';
+import { consumeEmailCode, sendEmailCode } from '../email-verification.ts';
 import { ApiError } from '../errors.ts';
 import type { ApiContext } from './context.ts';
 
@@ -89,15 +90,15 @@ export async function handleAuthRequest(context: ApiContext): Promise<boolean> {
   if (req.method === 'POST' && url.pathname === '/api/auth/send-code') {
     sameOrigin(req);
     limit(`send-code:${clientIp(req)}`, 30);
-    parsedBody(sendCodeRequestSchema, await readBody(req));
-    return respond(200, { ok: true });
+    const input = parsedBody(sendCodeRequestSchema, await readBody(req));
+    return respond(200, await sendEmailCode(database, input.email, input.purpose));
   }
   if (req.method === 'POST' && url.pathname === '/api/auth/register') {
     sameOrigin(req);
     limit(`register:${clientIp(req)}`, 20);
     const input = parsedBody(registerRequestSchema, await readBody(req));
-    if (!verificationCodeMatches(input.code))
-      throw new ApiError(400, '验证码不正确。');
+    if (!consumeEmailCode(database, input.email, 'register', input.code))
+      throw new ApiError(400, '验证码不正确或已失效。');
     const normalizedEmail = emailKey(input.email);
     if (
       database
@@ -150,8 +151,8 @@ export async function handleAuthRequest(context: ApiContext): Promise<boolean> {
     sameOrigin(req);
     limit(`email-login:${clientIp(req)}`, 60);
     const input = parsedBody(emailCodeRequestSchema, await readBody(req));
-    if (!verificationCodeMatches(input.code))
-      throw new ApiError(400, '验证码不正确。');
+    if (!consumeEmailCode(database, input.email, 'login', input.code))
+      throw new ApiError(400, '验证码不正确或已失效。');
     const user = database
       .prepare(
         `SELECT users.id, users.nickname, users.real_name, users.email,
@@ -249,8 +250,8 @@ export async function handleAuthRequest(context: ApiContext): Promise<boolean> {
     sameOrigin(req);
     limit(`recover:${clientIp(req)}`, 30);
     const input = parsedBody(emailCodeRequestSchema, await readBody(req));
-    if (!verificationCodeMatches(input.code))
-      throw new ApiError(400, '验证码不正确。');
+    if (!consumeEmailCode(database, input.email, 'recover-nickname', input.code))
+      throw new ApiError(400, '验证码不正确或已失效。');
     const user = database
       .prepare('SELECT nickname FROM users WHERE email_key = ?')
       .get(emailKey(input.email)) as { nickname: string } | undefined;
@@ -267,8 +268,8 @@ export async function handleAuthRequest(context: ApiContext): Promise<boolean> {
       resetPasswordRequestSchema,
       await readBody(req),
     );
-    if (!verificationCodeMatches(input.code))
-      throw new ApiError(400, '验证码不正确。');
+    if (!consumeEmailCode(database, input.email, 'reset-password', input.code))
+      throw new ApiError(400, '验证码不正确或已失效。');
     const user = database
       .prepare('SELECT id FROM users WHERE email_key = ?')
       .get(emailKey(input.email)) as { id: number } | undefined;

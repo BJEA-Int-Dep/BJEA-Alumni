@@ -145,8 +145,3 @@ export function publicUser(row: UserRow): AccountUser {
     },
   };
 }
-
-export function verificationCodeMatches(code: string) {
-  const configuredCode = process.env.AUTH_TEST_CODE;
-  return /^\d{4,8}$/.test(configuredCode ?? '') && code === configuredCode;
-}

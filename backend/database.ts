@@ -42,6 +42,24 @@ export function openDatabase(path = process.env.DATABASE_PATH || '.data/bjea.sql
     CREATE INDEX IF NOT EXISTS sessions_expires_at
       ON sessions(expires_at);
 
+    CREATE TABLE IF NOT EXISTS email_verification_codes (
+      email_key TEXT NOT NULL,
+      purpose TEXT NOT NULL,
+      code_hash TEXT NOT NULL,
+      expires_at INTEGER NOT NULL,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (email_key, purpose)
+    );
+    CREATE INDEX IF NOT EXISTS email_verification_codes_expires_at
+      ON email_verification_codes(expires_at);
+
+    CREATE TABLE IF NOT EXISTS email_code_limits (
+      email_key TEXT PRIMARY KEY,
+      window_started_at INTEGER NOT NULL,
+      send_count INTEGER NOT NULL,
+      last_sent_at INTEGER NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS profiles (
       user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
       draft_json TEXT NOT NULL,

@@ -1,10 +1,13 @@
 import { spawn } from 'node:child_process';
 
+const devApiPort = process.env.DEV_API_PORT || '8787';
+const devEnv = { ...process.env, API_PORT: devApiPort, NODE_ENV: 'development' };
+
 const children = [
   spawn(
     process.execPath,
     ['node_modules/tsx/dist/cli.mjs', 'watch', 'backend/index.ts'],
-    { stdio: 'inherit' },
+    { stdio: 'inherit', env: devEnv },
   ),
   spawn(
     process.execPath,
@@ -17,7 +20,7 @@ const children = [
       '--strictPort',
       ...process.argv.slice(2),
     ],
-    { stdio: 'inherit' },
+    { stdio: 'inherit', env: devEnv },
   ),
 ];
 let stopping = false;

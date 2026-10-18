@@ -38,7 +38,7 @@ interface AuthDialogProps {
 const modeCopy: Record<AuthMode, { title: string; description: string }> = {
   login: {
     title: '邮箱验证码登录',
-    description: '无需记密码。内测阶段请向管理员获取验证码。',
+    description: '输入注册邮箱，获取一次性验证码后登录。',
   },
   'password-login': {
     title: '使用密码登录',
@@ -46,7 +46,7 @@ const modeCopy: Record<AuthMode, { title: string; description: string }> = {
   },
   register: {
     title: '先注册校友账号',
-    description: '留下邮箱和真实姓名，就可以开始创建 Profile。真实姓名不会公开。内测阶段请向管理员获取验证码。',
+    description: '留下邮箱和真实姓名，就可以开始创建 Profile。真实姓名不会公开。',
   },
   'reset-password': {
     title: '设置新密码',
@@ -95,6 +95,14 @@ export function AuthDialog({
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [sendingCode, setSendingCode] = useState(false);
+  const [sendCooldown, setSendCooldown] = useState(0);
+
+  useEffect(() => {
+    if (sendCooldown <= 0) return;
+    const timeout = window.setTimeout(() => setSendCooldown((remaining) => remaining - 1), 1000);
+    return () => window.clearTimeout(timeout);
+  }, [sendCooldown]);
 
   useEffect(() => {
     if (!open) return;
@@ -129,14 +137,22 @@ export function AuthDialog({
         : mode === 'reset-password'
           ? 'reset-password'
           : 'login';
+    setSendingCode(true);
     try {
-      await apiRequest<{ ok: true }>('/api/auth/send-code', {
+      const result = await apiRequest<{ ok: true; status: 'accepted' }>('/api/auth/send-code', {
         method: 'POST',
         body: JSON.stringify({ email, purpose }),
       });
-      setNotice('内测阶段请向管理员获取验证码。');
+      if (result.status !== 'accepted')
+        throw new Error('网站前后端版本不一致，请更新并重启后端服务。');
+      setSendCooldown(60);
+      setNotice(mode === 'register'
+        ? '只有尚未注册的邮箱会收到验证码，10 分钟内有效；如果已有账号，请切换到登录。'
+        : '只有已注册且可用的邮箱会收到验证码，10 分钟内有效；若未收到，请检查邮箱地址。');
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : '验证码发送失败。');
+    } finally {
+      setSendingCode(false);
     }
   };
 
@@ -261,7 +277,12 @@ export function AuthDialog({
                 name="email"
                 type="email"
                 value={email}
-                onChange={(event) => setEmail(event.target.value)}
+                onChange={(event) => {
+                  setEmail(event.target.value);
+                  setCode('');
+                  setSendCooldown(0);
+                  setNotice('');
+                }}
                 autoComplete="email"
                 maxLength={254}
                 required
@@ -286,9 +307,11 @@ export function AuthDialog({
                   type="button"
                   variant="outline"
                   onClick={sendCode}
+                  disabled={sendingCode || sendCooldown > 0 || submitting}
                   className="h-12 rounded-xl bg-white px-4 font-black"
                 >
-                  <Mail className="size-4" /> 获取验证码
+                  <Mail className="size-4" />
+                  {sendingCode ? '处理中…' : sendCooldown > 0 ? `${sendCooldown} 秒后再试` : '获取验证码'}
                 </Button>
               </div>
             ) : null}
